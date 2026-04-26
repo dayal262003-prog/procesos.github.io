@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Levantamiento de Proceso | Suite Colaborativa</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif; }
+        body { background: #f4f7fc; padding: 24px; font-size: 15px; line-height: 1.45; color: #1a2c3e; }
+        .login-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(10,35,30,0.85); backdrop-filter: blur(10px); display: flex; justify-content: center; align-items: center; z-index: 2000; }
+        .login-card { background: white; border-radius: 48px; padding: 38px 32px; width: 400px; box-shadow: 0 30px 50px rgba(0,0,0,0.25); text-align: center; }
+        .login-card input { width: 100%; padding: 14px 16px; margin: 12px 0; border-radius: 60px; border: 1px solid #cbdcd6; font-size: 1rem; }
+        .login-card button { background: #1f6e5c; width: 100%; padding: 14px; border-radius: 60px; color: white; font-weight: 700; cursor: pointer; }
+        .error-msg { color: #cf4444; margin-top: 12px; }
+        .app-container { max-width: 1600px; margin: 0 auto; background: white; border-radius: 36px; overflow: hidden; display: none; box-shadow: 0 20px 35px rgba(0,0,0,0.05); }
+        .header { background: linear-gradient(135deg, #0f3e34, #1b5e4e); color: white; padding: 22px 32px; display: flex; justify-content: space-between; align-items: center; }
+        .user-badge { background: #2e856e; padding: 8px 20px; border-radius: 60px; font-weight: 600; }
+        .tab-bar { display: flex; flex-wrap: wrap; background: #f8fafc; border-bottom: 1px solid #e2edf2; padding-left: 28px; gap: 8px; }
+        .tab-btn { background: transparent; border: none; padding: 12px 28px; font-weight: 600; cursor: pointer; border-radius: 28px 28px 0 0; color: #2d5a4c; transition: all 0.2s; }
+        .tab-btn.active { background: white; color: #116454; border-bottom: 3px solid #2c8c6e; }
+        .tab-panel { display: none; padding: 28px 32px; animation: fade 0.2s; }
+        .active-panel { display: block; }
+        .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px,1fr)); gap: 24px; margin-bottom: 32px; }
+        .card { background: white; border-radius: 32px; padding: 22px; box-shadow: 0 6px 14px rgba(0,0,0,0.02); border: 1px solid #e2ece8; transition: transform 0.2s, box-shadow 0.2s; }
+        .card:hover { transform: translateY(-2px); box-shadow: 0 12px 20px rgba(0,0,0,0.05); }
+        .value { font-size: 2.7rem; font-weight: 800; color: #186454; }
+        button { background: #267c66; border: none; padding: 8px 20px; border-radius: 40px; color: white; font-weight: 600; cursor: pointer; margin: 4px; transition: 0.2s; }
+        button:hover { background: #1e5e4e; transform: scale(1.02); }
+        button.danger { background: #b33; }
+        button.danger:hover { background: #922; }
+        button.secondary { background: #607d73; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.8rem; overflow-x: auto; display: block; border-radius: 20px; }
+        th, td { border: 1px solid #deece7; padding: 12px 10px; text-align: left; vertical-align: top; }
+        th { background: #eaf9f3; font-weight: 700; }
+        input, select, textarea { width: 100%; padding: 8px 12px; border-radius: 20px; border: 1px solid #cadfd6; background: white; transition: 0.2s; }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: #267c66; box-shadow: 0 0 0 3px rgba(38,124,102,0.1); }
+        .chart-container { max-width: 100%; margin: 20px 0; height: 320px; position: relative; }
+        .flex-btns { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+        .two-columns { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 20px; }
+        .col-table { flex: 2; min-width: 280px; }
+        .col-chart { flex: 1.2; min-width: 280px; }
+        .alert-box { background: #fff3cd; border-left: 6px solid #ffc107; padding: 14px; margin: 16px 0; border-radius: 20px; font-weight: 500; }
+        footer { background: #fafefc; padding: 16px; text-align: center; font-size: 0.7rem; color: #5c7a6e; border-top: 1px solid #e2ece8; }
+        .btn-export-fixed { position: fixed; bottom: 24px; right: 24px; padding: 12px 24px; background: linear-gradient(135deg, #007BFF, #0056b3); color: white; border: none; border-radius: 50px; cursor: pointer; font-size: 14px; font-weight: bold; box-shadow: 0 4px 15px rgba(0,0,0,0.2); z-index: 1000; transition: 0.2s; }
+        .btn-export-fixed:hover { transform: scale(1.02); background: linear-gradient(135deg, #0056b3, #004494); }
+        .modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.7); z-index: 3000; justify-content: center; align-items: center; }
+        .modal-content { background: white; border-radius: 32px; max-width: 90vw; max-height: 90vh; overflow-y: auto; padding: 24px; width: 800px; }
+        @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+        .consolidate-area { background: #f0f7f4; border-radius: 28px; padding: 18px; margin-top: 20px; border: 1px dashed #267c66; }
+        .info-linea { background: #e8f0fe; padding: 6px 12px; border-radius: 20px; font-size: 0.75rem; display: inline-block; margin-bottom: 12px; }
+        .stat-badge { background: #eaf9f3; border-radius: 20px; padding: 4px 12px; font-size: 0.8rem; font-weight: 600; color: #186454; }
+    </style>
+</head>
+<body>
+<div id="loginScreen" class="login-overlay">
+    <div class="login-card">
+        <h2>🔐 Acceso Colaborativo</h2>
+        <input type="text" id="loginUser" placeholder="Usuario">
+        <input type="password" id="loginPass" placeholder="Contraseña">
+        <button id="loginBtn">Ingresar</button>
+        <div id="loginError" class="error-msg"></div>
+    </div>
+</div>
+
+<div id="mainApp" class="app-container">
+    <div class="header">
+        <div><h1>📌 LEVANTAMIENTO DE PROCESO</h1><p>SIPOC + Seguimiento colaborativo</p></div>
+        <div class="user-badge" id="userNameDisplay"></div>
+    </div>
+    <div class="tab-bar" id="tabBarContainer"></div>
+
+    <!-- PANEL USUARIO NORMAL -->
+    <div id="dashboardUser" class="tab-panel">
+        <div class="dashboard-grid">
+            <div class="card"><h3>📈 Avance de Procesos</h3><div class="value" id="avancePorcentaje">0%</div></div>
+            <div class="card"><h3>✅ Procesos completados</h3><div class="value" id="completadosCount">0</div></div>
+            <div class="card"><h3>📋 Actividades totales</h3><div class="value" id="totalActividades">0</div></div>
+            <div class="card"><h3>📅 Reuniones registradas</h3><div class="value" id="totalReuniones">0</div></div>
+        </div>
+        <div class="card">
+            <h3>📊 Seguimiento de Hitos (Plan vs Real - 22/04/2026 al 14/05/2026, solo días laborables)</h3>
+            <div class="info-linea">🟢 Línea verde: plan ideal (días laborables acumulados) &nbsp;&nbsp; 🟠 Línea naranja: progreso real según fechas de avance</div>
+            <div class="alert-box" id="tiempoAlert">🔔 Al marcar "Completado" se asigna la fecha actual y se actualiza la línea naranja.</div>
+            <div class="two-columns">
+                <div class="col-table">
+                    <h4>📋 Tabla de Hitos</h4>
+                    <table id="tablaHitos"><thead><tr><th>Hito</th><th>Actividades Clave</th><th>Completado</th><th>Tiempo (días)</th><th>Fecha Avance Real</th></tr></thead><tbody></tbody></table>
+                </div>
+                <div class="col-chart">
+                    <h4>📈 Progreso de Hitos: Planificado vs Real</h4>
+                    <div class="chart-container"><canvas id="hitoLineChart" style="height:280px;"></canvas></div>
+                </div>
+            </div>
+            <h4>📦 Entregables por Etapa</h4>
+            <div class="two-columns">
+                <div class="col-table"><table id="tablaEntregables"><thead><tr><th>Etapa</th><th>Entregable</th><th>Estado</th></tr></thead><tbody></tbody></table></div>
+                <div class="col-chart"><canvas id="entregablesChart" style="height:240px;"></canvas></div>
+            </div>
+            <h4>🔄 Revisiones Estratégicas</h4>
+            <div class="two-columns">
+                <div class="col-table"><table id="tablaRevisiones"><thead><tr><th>Revisión</th><th>Mejora Continua</th><th>Tecnología y Sistemas</th></tr></thead><tbody></tbody></table></div>
+                <div class="col-chart"><canvas id="revisionesChart" style="height:200px;"></canvas></div>
+            </div>
+        </div>
+        <div class="flex-btns"><button id="exportWordUserBtn">📄 Descargar mi Reporte WORD</button><button id="importReportJsonBtn" class="secondary">📂 Importar respaldo (JSON)</button></div>
+    </div>
+
+    <!-- PANEL SUPERVISORA - vista de equipo -->
+    <div id="supervisorPanel" class="tab-panel">
+        <div class="dashboard-grid">
+            <div class="card"><h3>📊 Rendimiento Global Equipo</h3><div class="value" id="supGlobalDesempeño">-</div><div id="supGlobalRiesgo"></div></div>
+            <div class="card"><h3>📈 Promedio Avance Equipo</h3><div class="value" id="supAvgAvance">0%</div></div>
+        </div>
+        <div class="two-columns">
+            <div class="col-table"><div class="card"><h4>📋 Usuarios</h4><table id="tablaUsuariosSupervisor"><thead><tr><th>Usuario</th><th>Avance %</th><th>Acción</th></tr></thead><tbody></tbody></table></div></div>
+            <div class="col-chart"><div class="card"><h4>📊 Tareas por usuario</h4><canvas id="supTimeVsTasksChart" style="height:280px;"></canvas></div></div>
+        </div>
+        <div class="card"><h4>📈 Seguimiento de Hitos - Todos los Usuarios</h4><canvas id="supHitosLineChart" style="height:350px;"></canvas></div>
+        <div class="card"><h4>📦 Entregables por Etapa (promedio equipo)</h4><canvas id="supEntregablesChart" style="height:280px;"></canvas></div>
+        <div class="consolidate-area">
+            <h4>📁 Consolidación (subir JSON de usuarios)</h4>
+            <input type="file" id="consolidateFileInputSupervisor" accept=".json" multiple>
+            <button id="consolidateBtnSupervisor">🔄 Consolidar y actualizar avances</button>
+            <div id="consolidateResultSupervisor" style="margin-top: 12px; font-size:0.85rem;"></div>
+        </div>
+        <div class="flex-btns"><button id="exportWordSupervisorBtn">📄 Exportar diagnóstico WORD (equipo)</button></div>
+    </div>
+
+    <!-- Pestañas comunes (procesos, actividades, reuniones, sipoc) -->
+    <div id="procesosUser" class="tab-panel"><div class="toolbar"><button id="agregarProcesoBtn">➕ Agregar proceso</button></div><div style="overflow-x:auto;"><table id="tablaProcesos"><thead><tr><th>ID</th><th>Nombre</th><th>Responsable</th><th>Área</th><th>Observaciones</th><th>Estado</th><th>Acciones</th></tr></thead><tbody></tbody></table></div></div>
+    <div id="actividadesUser" class="tab-panel"><div class="toolbar"><button id="agregarActividadBtn">➕ Agregar actividad</button></div><div style="overflow-x:auto;"><table id="tablaActividades"><thead><tr><th>ID</th><th>Proceso</th><th>Actividad</th><th>Rol</th><th>Entradas</th><th>Salidas</th><th>Sistema</th><th>Documento</th><th>Observaciones</th><th>Acciones</th></tr></thead><tbody></tbody></table></div></div>
+    <div id="reunionesUser" class="tab-panel"><div class="toolbar"><button id="agregarReunionBtn">➕ Registrar reunión</button></div><div style="overflow-x:auto;"><table id="tablaReuniones"><thead><tr><th>ID</th><th>Proceso</th><th>Tema</th><th>Participantes</th><th>Fecha</th><th>Acuerdos</th><th>Estado</th><th>Acciones</th></tr></thead><tbody></tbody></table></div></div>
+    <div id="sipocUser" class="tab-panel"><h3>SIPOC Automático</h3><div style="overflow-x:auto;"><table id="tablaSipoc"><thead><tr><th>Proveedor</th><th>Entrada</th><th>Actividad</th><th>Rol</th><th>Proceso</th><th>Salida</th><th>Cliente</th></tr></thead><tbody></tbody></table></div></div>
+
+    <!-- ADMIN PANEL -->
+    <div id="adminDashboard" class="tab-panel">
+        <div class="admin-verification"><h3>🛠️ Panel de Administración</h3><p>Consolidación global y análisis detallado</p></div>
+        <div class="dashboard-grid">
+            <div class="card"><h3>📊 Rendimiento Global Equipo</h3><div class="value" id="globalDesempeño">-</div><div id="globalRiesgo"></div></div>
+            <div class="card"><h3>📈 Promedio Avance</h3><div class="value" id="avgAvance">0%</div></div>
+        </div>
+        <div class="two-columns">
+            <div class="col-table"><div class="card"><h4>📋 Usuarios</h4><table id="tablaUsuariosAdmin"><thead><tr><th>Usuario</th><th>Avance %</th><th>Acción</th></tr></thead><tbody></tbody></table></div></div>
+            <div class="col-chart"><div class="card"><h4>📊 Tareas por usuario</h4><canvas id="adminTimeVsTasksChart" style="height:280px;"></canvas></div></div>
+        </div>
+        <div class="card"><h4>📈 Seguimiento de Hitos - Línea por Usuario</h4><canvas id="adminHitosLineChart" style="height:350px;"></canvas></div>
+        <div class="card"><h4>✅ Seguimiento de Hitos Individual</h4><table id="tablaHitosGlobalAdmin" style="width:100%"><thead><tr><th>Usuario</th><th>Hitos Completados</th><th>Total Hitos</th><th>% Cumplimiento</th></tr></thead><tbody></tbody></table></div>
+        <div class="card"><h4>📦 Entregables por Etapa (promedio equipo)</h4><canvas id="adminEntregablesGlobalChart" style="height:280px;"></canvas></div>
+        <div class="card"><h4>📋 Entregables Individuales</h4><table id="tablaEntregablesGlobalAdmin" style="width:100%"><thead><tr><th>Usuario</th><th>Entregables Completados</th><th>Total Entregables</th><th>% Avance</th></tr></thead><tbody></tbody></table></div>
+        <div class="card"><h4>📁 Consolidación (subir JSON)</h4><input type="file" id="consolidateFileInputAdmin" accept=".json" multiple><button id="consolidateBtnAdmin">🔄 Consolidar y Actualizar</button><button id="downloadConsolidatedBackup" class="secondary">💾 Backup completo</button><div id="consolidateResultAdmin"></div></div>
+        <div class="flex-btns"><button id="exportWordReportBtn">📄 Exportar Diagnóstico WORD</button><button id="refreshAdminBtn" class="danger">⚠️ BORRAR TODOS LOS DATOS</button></div>
+    </div>
+    <footer>✓ Plan ideal recalibrado con días laborables (excluye fines de semana y feriados 30/04, 01/05). SIPOC automático.</footer>
+</div>
+
+<button id="btnExportarJSONFijo" class="btn-export-fixed">💾 Exportar mi JSON (Guardar como)</button>
+<div id="userDetailModal" class="modal"><div class="modal-content"><h3 id="modalTitle">Reporte detallado</h3><div id="modalReportBody"></div><button id="closeModalBtn">Cerrar</button></div></div>
+
+<script>
+    // USUARIOS
+    const USERS = [
+        { username: "MBAREZUETA", password: "MB2025", role: "user" }, { username: "ISANTOS", password: "IS2025", role: "user" },
+        { username: "ALOOR", password: "AL2025", role: "user" }, { username: "DBERMUDEZ", password: "DB2025", role: "user" },
+        { username: "DALARCON", password: "DA2025", role: "user" }, { username: "MCASQUETE", password: "MC2025", role: "supervisor" },
+        { username: "JARANDA", password: "adminTemp2025", role: "admin" }
+    ];
+    let currentUser = null;
+    
+    function contarDiasLaborables(inicio, fin) {
+        let start = new Date(inicio);
+        let end = new Date(fin);
+        let count = 0;
+        const feriados = ['2026-04-30', '2026-05-01'];
+        let current = new Date(start);
+        current.setHours(0,0,0,0);
+        while (current <= end) {
+            let dayOfWeek = current.getDay();
+            let fechaStr = current.toISOString().slice(0,10);
+            if (dayOfWeek !== 0 && dayOfWeek !== 6 && !feriados.includes(fechaStr)) count++;
+            current.setDate(current.getDate() + 1);
+        }
+        return count;
+    }
+    const inicioPlan = new Date(2026, 3, 22);
+    const planAcumulado = [0, 2, 5, 10, 15];
+    const fechasSugeridas = ["2026-04-22", "2026-04-27", "2026-05-04", "2026-05-11", "2026-05-14"];
+    const tiemposDiasTabla = [0, 2, 5, 10, 15];
+    const defaultHitosBase = [
+        { hito: "Prework", actividades: "Definiciones generales / expectativas", completado: false, tiempo: 0 },
+        { hito: "Construcción", actividades: "SIPOC, mejoras rápidas", completado: false, tiempo: 2 },
+        { hito: "Documentación", actividades: "Fichas, documentos SharePoint", completado: false, tiempo: 5 },
+        { hito: "Implementación", actividades: "Capacitaciones, material", completado: false, tiempo: 10 },
+        { hito: "Cierre", actividades: "Salida en vivo, indicador", completado: false, tiempo: 15 }
+    ];
+    const defaultHitos = defaultHitosBase.map((h, idx) => ({ ...h, fechaAvance: fechasSugeridas[idx] }));
+    const defaultEntregables = [ 
+        { etapa: "Prework", entregable: "Ideograma", estado: false },{ etapa: "Prework", entregable: "Plan de mejoras", estado: false },{ etapa: "Prework", entregable: "Detalle de procesos impactados", estado: false },
+        { etapa: "Construcción", entregable: "SIPOC diagramado", estado: false },{ etapa: "Construcción", entregable: "Plan de capacitación", estado: false },{ etapa: "Construcción", entregable: "Definición de indicador", estado: false },{ etapa: "Construcción", entregable: "Reuniones con líderes", estado: false },
+        { etapa: "Documentación", entregable: "Documentos aprobados", estado: false },{ etapa: "Documentación", entregable: "Palabras claves", estado: false },
+        { etapa: "Implementación", entregable: "Plan de implementación", estado: false },{ etapa: "Implementación", entregable: "Listado colaboradores", estado: false },{ etapa: "Implementación", entregable: "Evidencia capacitación", estado: false },
+        { etapa: "Cierre", entregable: "Salida en vivo ejecutada", estado: false },{ etapa: "Cierre", entregable: "Archivo datos indicador", estado: false }
+    ];
+    const defaultRevisiones = { mejoraContinua: false, tecnologiaSistemas: false };
+    
+    function migrateHitosFechas(hitos) {
+        return hitos.map((h, idx) => {
+            if (!h.fechaAvance || h.fechaAvance === "") h.fechaAvance = fechasSugeridas[idx] || "2026-05-14";
+            if (h.tiempo === undefined || h.tiempo !== tiemposDiasTabla[idx]) h.tiempo = tiemposDiasTabla[idx];
+            return h;
+        });
+    }
+    function loadUserData(username) {
+        const key = `proc_data_v5_${username}`;
+        const stored = localStorage.getItem(key);
+        let data;
+        if (stored) {
+            data = JSON.parse(stored);
+            if (data.hitos) data.hitos = migrateHitosFechas(data.hitos);
+            else data.hitos = JSON.parse(JSON.stringify(defaultHitos));
+        } else {
+            data = {
+                procesos: [{ id:1, nombre:"Diagnóstico inicial", responsable:"Jefe", area:"Operaciones", observaciones:"", estado:"Pendiente" }],
+                actividades: [{ id:1, procesoId:1, actividad:"Recolección datos", responsable:"Analista", entradas:"Checklist", salidas:"Matriz", sistema:"Manual", documento:"PRO-001", observaciones:"" }],
+                reuniones: [{ id:1, procesoId:1, tema:"Kick-off", participantes:"Equipo", fecha:"2026-04-10", acuerdos:"Cronograma", estado:"Completada" }],
+                hitos: JSON.parse(JSON.stringify(defaultHitos)),
+                entregables: JSON.parse(JSON.stringify(defaultEntregables)),
+                revisiones: JSON.parse(JSON.stringify(defaultRevisiones)),
+                nextIdProceso:2, nextIdActividad:2, nextIdReunion:2
+            };
+        }
+        if (!data.entregables) data.entregables = JSON.parse(JSON.stringify(defaultEntregables));
+        if (!data.revisiones) data.revisiones = JSON.parse(JSON.stringify(defaultRevisiones));
+        return data;
+    }
+    function saveUserData(username, data) { localStorage.setItem(`proc_data_v5_${username}`, JSON.stringify(data)); }
+    let currentData = null;
+    let hitoLineChart = null, entregablesChart = null, revisionesChart = null;
+    let adminChart = null, adminHitosLineChart = null, adminEntregablesChart = null;
+    let supChart = null, supHitosLineChart = null, supEntregablesChart = null;
+    
+    function getAllUsersData() { 
+        return USERS.filter(u=>u.username!=="JARANDA").map(u=>{ 
+            let data=loadUserData(u.username); 
+            let completados=data.procesos.filter(p=>p.estado==="Completado").length; 
+            let avance=data.procesos.length?(completados/data.procesos.length*100):0; 
+            let hitosCompletados = data.hitos.filter(h=>h.completado).length;
+            let entregablesCompletados = data.entregables.filter(e=>e.estado).length;
+            return {username:u.username, avance, totalTareas:data.procesos.length, hitos:data.hitos, entregables:data.entregables, hitosCompletados, entregablesCompletados, role:u.role}; 
+        }); 
+    }
+    function autoAssignDateOnComplete(hito, idx) {
+        if (hito.completado && (!hito.fechaAvance || hito.fechaAvance === "")) {
+            const today = new Date().toISOString().slice(0,10);
+            hito.fechaAvance = today;
+            const fechaInput = document.querySelector(`.hito-fecha[data-idx="${idx}"]`);
+            if (fechaInput) fechaInput.value = today;
+        }
+    }
+    function calcularDiasReales(fechaAvance) {
+        if (!fechaAvance) return null;
+        let fecha = new Date(fechaAvance);
+        if (isNaN(fecha.getTime())) return null;
+        return contarDiasLaborables(inicioPlan, fecha);
+    }
+    function renderHitosChart() {
+        const hitosNombres = currentData.hitos.map(h=>h.hito);
+        let realDias = currentData.hitos.map(h => calcularDiasReales(h.fechaAvance));
+        const canvas = document.getElementById('hitoLineChart');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        if (hitoLineChart) hitoLineChart.destroy();
+        hitoLineChart = new Chart(ctx, {
+            type: 'line',
+            data: { labels: hitosNombres, datasets: [
+                { label: '📅 Plan ideal (días laborables)', data: planAcumulado, borderColor: '#2c6e5c', borderWidth: 3, borderDash: [5,5], tension: 0.2, fill: false, pointRadius: 5, pointBackgroundColor: '#2c6e5c' },
+                { label: '✅ Progreso Real (días laborables)', data: realDias, borderColor: '#e67e22', borderWidth: 3, tension: 0.2, fill: false, pointRadius: 6, pointBackgroundColor: '#e67e22', spanGaps: true }
+            ] },
+            options: { responsive: true, maintainAspectRatio: true, plugins: { tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${ctx.raw !== null ? ctx.raw + ' días' : 'Sin fecha'}` } } }, scales: { y: { title: { display: true, text: 'Días laborables desde 22/04/2026' }, min: 0, max: 16 } } }
+        });
+    }
+    function renderTracking() {
+        if(!currentData) return;
+        let tbodyH = document.querySelector("#tablaHitos tbody");
+        if(tbodyH){
+            tbodyH.innerHTML = "";
+            currentData.hitos.forEach((h, idx) => {
+                tbodyH.innerHTML += `<tr><td><strong>${escapeHtml(h.hito)}</strong></td><td>${escapeHtml(h.actividades)}</td><td style="text-align:center"><input type="checkbox" class="hito-completado" data-idx="${idx}" ${h.completado ? "checked" : ""}></td><td>${h.tiempo}</td><td><input type="date" class="hito-fecha" data-idx="${idx}" value="${h.fechaAvance || ''}"></td></tr>`;
+            });
+            document.querySelectorAll(".hito-completado").forEach(cb => cb.addEventListener("change", (e) => { let idx=parseInt(e.target.dataset.idx); currentData.hitos[idx].completado=e.target.checked; autoAssignDateOnComplete(currentData.hitos[idx], idx); persistUserTracking(); refreshForCurrentUser(); }));
+            document.querySelectorAll(".hito-fecha").forEach(inp => inp.addEventListener("change", (e) => { let idx=parseInt(e.target.dataset.idx); currentData.hitos[idx].fechaAvance=e.target.value; persistUserTracking(); refreshForCurrentUser(); }));
+        }
+        let tbodyE = document.querySelector("#tablaEntregables tbody");
+        if(tbodyE){
+            tbodyE.innerHTML = "";
+            currentData.entregables.forEach((ent, idx) => { tbodyE.innerHTML += `<tr><td>${escapeHtml(ent.etapa)}</td><td>${escapeHtml(ent.entregable)}</td><td style="text-align:center"><input type="checkbox" class="entregable-check" data-idx="${idx}" ${ent.estado ? "checked" : ""}></td></tr>`; });
+            document.querySelectorAll(".entregable-check").forEach(cb => cb.addEventListener("change", (e) => { let idx=parseInt(e.target.dataset.idx); currentData.entregables[idx].estado=e.target.checked; persistUserTracking(); refreshForCurrentUser(); }));
+        }
+        let tbodyR = document.querySelector("#tablaRevisiones tbody");
+        if(tbodyR){
+            tbodyR.innerHTML = `<tr><td>Estado actual</td><td style="text-align:center"><input type="checkbox" id="checkMejora" ${currentData.revisiones.mejoraContinua ? "checked" : ""}></td><td style="text-align:center"><input type="checkbox" id="checkTecno" ${currentData.revisiones.tecnologiaSistemas ? "checked" : ""}></td></tr>`;
+            document.getElementById("checkMejora")?.addEventListener("change", (e) => { currentData.revisiones.mejoraContinua = e.target.checked; persistUserTracking(); refreshForCurrentUser(); });
+            document.getElementById("checkTecno")?.addEventListener("change", (e) => { currentData.revisiones.tecnologiaSistemas = e.target.checked; persistUserTracking(); refreshForCurrentUser(); });
+        }
+        renderHitosChart();
+        
+        const ctxEnt = document.getElementById('entregablesChart').getContext('2d');
+        let etapas = [...new Set(currentData.entregables.map(e=>e.etapa))];
+        let avanceEtapas = etapas.map(et => { let total = currentData.entregables.filter(e=>e.etapa===et).length; let completos = currentData.entregables.filter(e=>e.etapa===et && e.estado).length; return total? (completos/total*100) : 0; });
+        if(entregablesChart) entregablesChart.destroy();
+        entregablesChart = new Chart(ctxEnt, { type: 'bar', data: { labels: etapas, datasets: [{ label: '% Avance entregables', data: avanceEtapas, backgroundColor: '#2c6e5c', borderRadius: 10 }] } });
+        
+        const ctxRev = document.getElementById('revisionesChart').getContext('2d');
+        if(revisionesChart) revisionesChart.destroy();
+        revisionesChart = new Chart(ctxRev, { type: 'doughnut', data: { labels: ['Mejora Continua', 'Tecnología y Sistemas'], datasets: [{ data: [currentData.revisiones.mejoraContinua?1:0, currentData.revisiones.tecnologiaSistemas?1:0], backgroundColor: ['#f39c12','#3498db'] }] } });
+    }
+    
+    function renderSupervisorAdminPanel(isAdmin = false) {
+        let users = getAllUsersData();
+        let avg = users.reduce((a,b)=>a+b.avance,0)/(users.length||1);
+        if(isAdmin){
+            document.getElementById("avgAvance").innerHTML = Math.round(avg)+"%";
+            let totalTareas=users.reduce((s,u)=>s+u.totalTareas,0); let completEq=users.reduce((s,u)=>s+(u.totalTareas * (u.avance/100)),0); let desempeño=totalTareas?(completEq/totalTareas*100):0;
+            document.getElementById("globalDesempeño").innerHTML = Math.round(desempeño)+"%"; document.getElementById("globalRiesgo").innerHTML=desempeño<50?"🔴 Alto riesgo": desempeño<80?"🟡 Medio":"🟢 Bajo";
+            let tbody = document.querySelector("#tablaUsuariosAdmin tbody");
+            if(tbody){ tbody.innerHTML=""; users.forEach(u=>{ tbody.innerHTML+=`<tr><td>${u.username}</td><td>${Math.round(u.avance)}%</td><td><button class="viewUserDetailBtn" data-user="${u.username}">📋 Ver</button></td></tr>`; }); document.querySelectorAll(".viewUserDetailBtn").forEach(btn=>btn.onclick=()=>showUserDetailModal(btn.dataset.user)); }
+            let ctx=document.getElementById('adminTimeVsTasksChart').getContext('2d'); if(adminChart) adminChart.destroy(); adminChart=new Chart(ctx,{type:'bar',data:{labels:users.map(u=>u.username),datasets:[{label:'Total tareas',data:users.map(u=>u.totalTareas),backgroundColor:'#3a8c75'}]},options:{indexAxis:'y'}});
+            const hitosNombre = ["Prework","Construcción","Documentación","Implementación","Cierre"];
+            const datasetsLine = users.map(u => ({ label: u.username, data: hitosNombre.map(h => { let hit = u.hitos.find(hh=>hh.hito===h); return hit ? calcularDiasReales(hit.fechaAvance) : null; }), borderColor: `hsl(${Math.random()*360}, 70%, 50%)`, fill: false, tension: 0.2 }));
+            const ctxLineAdmin = document.getElementById('adminHitosLineChart').getContext('2d'); if(adminHitosLineChart) adminHitosLineChart.destroy();
+            adminHitosLineChart = new Chart(ctxLineAdmin, { type: 'line', data: { labels: hitosNombre, datasets: [...datasetsLine, { label: '📅 Plan Ideal', data: planAcumulado, borderColor: '#2c6e5c', borderWidth: 3, borderDash: [8,5], fill: false }] }, options: { responsive: true, scales: { y: { title: { display: true, text: 'Días laborables' }, min: 0, max: 16 } } } });
+            let hitosTable = document.querySelector("#tablaHitosGlobalAdmin tbody");
+            if(hitosTable){ hitosTable.innerHTML = ""; users.forEach(u => { let completados = u.hitos.filter(h=>h.completado).length; let total = u.hitos.length; let porcentaje = total ? (completados/total*100).toFixed(1) : 0; hitosTable.innerHTML += `<tr><td>${u.username}</td><td>${completados}</td><td>${total}</td><td>${porcentaje}%</td>`; }); }
+            let entregablesTable = document.querySelector("#tablaEntregablesGlobalAdmin tbody");
+            if(entregablesTable){ entregablesTable.innerHTML = ""; users.forEach(u => { let completados = u.entregables.filter(e=>e.estado).length; let total = u.entregables.length; let porcentaje = total ? (completados/total*100).toFixed(1) : 0; entregablesTable.innerHTML += `<tr><td>${u.username}</td><td>${completados}</td><td>${total}</td><td>${porcentaje}%</td>`; }); }
+            let etapas = ["Prework","Construcción","Documentación","Implementación","Cierre"]; let globalEntreg = etapas.map(et=>{ let total=0, comp=0; users.forEach(u=>{ let ents=u.entregables?.filter(e=>e.etapa===et); total+=ents.length; comp+=ents.filter(e=>e.estado).length; }); return total? (comp/total*100):0; });
+            if(adminEntregablesChart) adminEntregablesChart.destroy(); adminEntregablesChart = new Chart(document.getElementById('adminEntregablesGlobalChart'),{type:'bar',data:{labels:etapas,datasets:[{label:'% Avance entregables', data:globalEntreg, backgroundColor:'#e67e22',borderRadius:10}]}});
+        } else { // SUPERVISORA
+            document.getElementById("supAvgAvance").innerHTML = Math.round(avg)+"%";
+            let totalTareas=users.reduce((s,u)=>s+u.totalTareas,0); let completEq=users.reduce((s,u)=>s+(u.totalTareas * (u.avance/100)),0); let desempeño=totalTareas?(completEq/totalTareas*100):0;
+            document.getElementById("supGlobalDesempeño").innerHTML = Math.round(desempeño)+"%"; document.getElementById("supGlobalRiesgo").innerHTML=desempeño<50?"🔴 Alto riesgo": desempeño<80?"🟡 Medio":"🟢 Bajo";
+            let tbody = document.querySelector("#tablaUsuariosSupervisor tbody");
+            if(tbody){ tbody.innerHTML=""; users.forEach(u=>{ tbody.innerHTML+=`<tr><td>${u.username}</td><td>${Math.round(u.avance)}%</td><td><button class="supViewUserBtn" data-user="${u.username}">📋 Ver</button></td></tr>`; }); document.querySelectorAll(".supViewUserBtn").forEach(btn=>btn.onclick=()=>showUserDetailModal(btn.dataset.user)); }
+            let ctxSup=document.getElementById('supTimeVsTasksChart').getContext('2d'); if(supChart) supChart.destroy(); supChart=new Chart(ctxSup,{type:'bar',data:{labels:users.map(u=>u.username),datasets:[{label:'Total tareas',data:users.map(u=>u.totalTareas),backgroundColor:'#3a8c75'}]},options:{indexAxis:'y'}});
+            const hitosNombre = ["Prework","Construcción","Documentación","Implementación","Cierre"];
+            const datasetsLineSup = users.map(u => ({ label: u.username, data: hitosNombre.map(h => { let hit = u.hitos.find(hh=>hh.hito===h); return hit ? calcularDiasReales(hit.fechaAvance) : null; }), borderColor: `hsl(${Math.random()*360}, 70%, 50%)`, fill: false, tension: 0.2 }));
+            const ctxLineSup = document.getElementById('supHitosLineChart').getContext('2d'); if(supHitosLineChart) supHitosLineChart.destroy();
+            supHitosLineChart = new Chart(ctxLineSup, { type: 'line', data: { labels: hitosNombre, datasets: [...datasetsLineSup, { label: '📅 Plan Ideal', data: planAcumulado, borderColor: '#2c6e5c', borderWidth: 3, borderDash: [8,5], fill: false }] }, options: { responsive: true, scales: { y: { title: { display: true, text: 'Días laborables' }, min: 0, max: 16 } } } });
+            let etapas = ["Prework","Construcción","Documentación","Implementación","Cierre"]; let globalEntregSup = etapas.map(et=>{ let total=0, comp=0; users.forEach(u=>{ let ents=u.entregables?.filter(e=>e.etapa===et); total+=ents.length; comp+=ents.filter(e=>e.estado).length; }); return total? (comp/total*100):0; });
+            if(supEntregablesChart) supEntregablesChart.destroy(); supEntregablesChart = new Chart(document.getElementById('supEntregablesChart'),{type:'bar',data:{labels:etapas,datasets:[{label:'% Avance entregables', data:globalEntregSup, backgroundColor:'#e67e22',borderRadius:10}]}});
+        }
+    }
+    
+    function showUserDetailModal(username) {
+        let data = loadUserData(username);
+        let html = `<h3>📊 Reporte - ${username}</h3><div class="alert-box">💡 Recomendaciones: ${data.hitos.filter(h=>!h.completado).length>0 ? 'Complete hitos pendientes.' : 'Excelente.'}</div>
+        <h4>📈 Hitos</h4><table border="1"><thead><tr><th>Hito</th><th>Completado</th><th>Fecha Real</th></tr></thead><tbody>${data.hitos.map(h=>`<tr><td>${h.hito}</td><td>${h.completado?'✅':'❌'}</td><td>${h.fechaAvance||'-'}</td>`).join('')}</tbody><tr>
+        <h4>📦 Entregables</h4><table border="1"><thead><tr><th>Etapa</th><th>Entregable</th><th>Estado</th></tr></thead><tbody>${data.entregables.map(e=>`<tr><td>${e.etapa}</td><td>${e.entregable}</td><td>${e.estado?'✅':'❌'}</td>`).join('')}</tbody></table>`;
+        document.getElementById("modalReportBody").innerHTML = html;
+        document.getElementById("userDetailModal").style.display = "flex";
+    }
+    
+    function persistUserTracking() { if(currentUser && currentUser.role !== 'admin') saveUserData(currentUser.username, currentData); }
+    function renderProcesos() { let tbody = document.querySelector("#tablaProcesos tbody"); if(!tbody) return; tbody.innerHTML = ""; currentData.procesos.forEach(proc => { tbody.innerHTML += `<tr><td>${proc.id}</td><td><input type="text" value="${escapeHtml(proc.nombre)}" data-id="${proc.id}" data-field="nombre" class="edit-proc"></td><td><input type="text" value="${escapeHtml(proc.responsable)}" data-id="${proc.id}" data-field="responsable" class="edit-proc"></td><td><input type="text" value="${escapeHtml(proc.area)}" data-id="${proc.id}" data-field="area" class="edit-proc"></td><td><textarea data-id="${proc.id}" data-field="observaciones" class="edit-proc">${escapeHtml(proc.observaciones||'')}</textarea></td><td><select data-id="${proc.id}" data-field="estado" class="estado-proc"><option ${proc.estado==="Pendiente"?"selected":""}>Pendiente</option><option ${proc.estado==="En proceso"?"selected":""}>En proceso</option><option ${proc.estado==="Completado"?"selected":""}>Completado</option></select></td><td><span class="delete-proceso" data-id="${proc.id}" style="cursor:pointer;">🗑️</span></td>`; }); attachEditEvents(); }
+    function attachEditEvents() { document.querySelectorAll(".edit-proc, .estado-proc").forEach(el => el.addEventListener("change", (e) => { handleGenericEdit(e, "procesos"); })); document.querySelectorAll(".delete-proceso").forEach(btn => btn.onclick = () => { eliminarEntidad("procesos", parseInt(btn.dataset.id)); }); }
+    function eliminarEntidad(entity, id) { if(entity === "procesos") currentData.procesos = currentData.procesos.filter(p => p.id !== id); else if(entity === "actividades") currentData.actividades = currentData.actividades.filter(a => a.id !== id); else if(entity === "reuniones") currentData.reuniones = currentData.reuniones.filter(r => r.id !== id); persistCurrentData(); refreshForCurrentUser(); }
+    function handleGenericEdit(e, collection) { const id = parseInt(e.target.dataset.id); const field = e.target.dataset.field; const value = e.target.value; const item = currentData[collection].find(x => x.id === id); if(item) { item[field] = value; persistCurrentData(); refreshForCurrentUser(); } }
+    function renderActividades() { let tbody = document.querySelector("#tablaActividades tbody"); if(!tbody) return; tbody.innerHTML = ""; currentData.actividades.forEach(act => { tbody.innerHTML += `<tr><td>${act.id}</td><td><select class="act-proceso" data-id="${act.id}">${currentData.procesos.map(p=>`<option value="${p.id}" ${act.procesoId===p.id?"selected":""}>${escapeHtml(p.nombre)}</option>`).join('')}</select></td><td><input type="text" value="${escapeHtml(act.actividad)}" data-id="${act.id}" data-field="actividad" class="act-edit"></td><td><input type="text" value="${escapeHtml(act.responsable)}" data-id="${act.id}" data-field="responsable" class="act-edit"></td><td><input type="text" value="${escapeHtml(act.entradas)}" data-id="${act.id}" data-field="entradas" class="act-edit"></td><td><input type="text" value="${escapeHtml(act.salidas)}" data-id="${act.id}" data-field="salidas" class="act-edit"></td><td><input type="text" value="${escapeHtml(act.sistema||'')}" data-id="${act.id}" data-field="sistema" class="act-edit"></td><td><input type="text" value="${escapeHtml(act.documento||'')}" data-id="${act.id}" data-field="documento" class="act-edit"></td><td><textarea data-id="${act.id}" data-field="observaciones" class="act-edit">${escapeHtml(act.observaciones||'')}</textarea></td><td><span class="delete-actividad" data-id="${act.id}" style="cursor:pointer;">❌</span></td>`; }); document.querySelectorAll(".act-edit, .act-proceso").forEach(el => el.addEventListener("change", (e) => { let id = parseInt(e.target.closest("tr")?.querySelector(".act-proceso")?.dataset.id || e.target.dataset.id); let act = currentData.actividades.find(a => a.id === id); if(act) { if(e.target.classList.contains("act-proceso")) act.procesoId = parseInt(e.target.value); else act[e.target.dataset.field] = e.target.value; persistCurrentData(); refreshForCurrentUser(); } })); document.querySelectorAll(".delete-actividad").forEach(btn => btn.onclick = () => { eliminarEntidad("actividades", parseInt(btn.dataset.id)); }); }
+    function renderReuniones() { let tbody = document.querySelector("#tablaReuniones tbody"); if(!tbody) return; tbody.innerHTML = ""; currentData.reuniones.forEach(ren => { tbody.innerHTML += `<tr><td>${ren.id}</td><td><select class="reun-proceso" data-id="${ren.id}">${currentData.procesos.map(p=>`<option value="${p.id}" ${ren.procesoId===p.id?"selected":""}>${escapeHtml(p.nombre)}</option>`).join('')}</select></td><td><input type="text" value="${escapeHtml(ren.tema)}" data-id="${ren.id}" data-field="tema" class="ren-edit"></td><td><input type="text" value="${escapeHtml(ren.participantes)}" data-id="${ren.id}" data-field="participantes" class="ren-edit"></td><td><input type="date" value="${ren.fecha||''}" data-id="${ren.id}" data-field="fecha" class="ren-edit"></td><td><textarea data-id="${ren.id}" data-field="acuerdos" class="ren-edit">${escapeHtml(ren.acuerdos||'')}</textarea></td><td><select data-id="${ren.id}" data-field="estado"><option ${ren.estado==="Pendiente"?"selected":""}>Pendiente</option><option ${ren.estado==="Completada"?"selected":""}>Completada</option></select></td><td><span class="delete-reunion" data-id="${ren.id}" style="cursor:pointer;">🗑️</span></td>`; }); document.querySelectorAll(".ren-edit, .reun-proceso").forEach(el => el.addEventListener("change", (e) => { let id = parseInt(e.target.closest("tr")?.querySelector(".reun-proceso")?.dataset.id || e.target.dataset.id); let ren = currentData.reuniones.find(r => r.id === id); if(ren) { if(e.target.classList.contains("reun-proceso")) ren.procesoId = parseInt(e.target.value); else ren[e.target.dataset.field] = e.target.value; persistCurrentData(); refreshForCurrentUser(); } })); document.querySelectorAll(".delete-reunion").forEach(btn => btn.onclick = () => { eliminarEntidad("reuniones", parseInt(btn.dataset.id)); }); }
+    function renderSipoc() { 
+        let tbody = document.querySelector("#tablaSipoc tbody"); 
+        if(!tbody) return; 
+        tbody.innerHTML = ""; 
+        currentData.procesos.forEach(proc => { 
+            let acts = currentData.actividades.filter(a=>a.procesoId===proc.id); 
+            if(acts.length===0) tbody.innerHTML += `<tr><td colspan="7">Sin actividades asociadas</td>`; 
+            else acts.forEach(act => { 
+                tbody.innerHTML += `<tr><td>${act.entradas?.split(',')[0]||'Proveedor'}</td><td>${act.entradas||'-'}</td><td>${act.actividad}</td><td>${act.responsable}</td><td>${proc.nombre}</td><td>${act.salidas||'-'}</td><td>${act.responsable||'Interno'}</td>`; 
+            }); 
+        }); 
+    }
+    function updateDashboardAndCharts() { let completados = currentData.procesos.filter(p=>p.estado==="Completado").length; let avance = currentData.procesos.length ? (completados/currentData.procesos.length*100) : 0; document.getElementById("avancePorcentaje").innerHTML = `${Math.round(avance)}%`; document.getElementById("completadosCount").innerText = completados; document.getElementById("totalActividades").innerText = currentData.actividades.length; document.getElementById("totalReuniones").innerText = currentData.reuniones.length; }
+    function persistCurrentData() { if(currentUser && currentUser.role !== 'admin') saveUserData(currentUser.username, currentData); }
+    
+    function consolidateFromFiles(files, role) {
+        let processed = 0;
+        Array.from(files).forEach(file => {
+            let reader = new FileReader();
+            reader.onload = ev => {
+                try {
+                    let imported = JSON.parse(ev.target.result);
+                    let targetUser = null;
+                    if(imported.usuario && USERS.find(u=>u.username===imported.usuario)) targetUser = imported.usuario;
+                    else {
+                        let match = USERS.find(u => file.name.toUpperCase().includes(u.username));
+                        targetUser = match ? match.username : "MBAREZUETA";
+                    }
+                    if(imported.procesos) {
+                        if (imported.hitos) imported.hitos = migrateHitosFechas(imported.hitos);
+                        saveUserData(targetUser, imported);
+                    }
+                    if(role === 'admin') document.getElementById("consolidateResultAdmin").innerHTML = `<span style="color:green;">✅ ${file.name} → ${targetUser}</span><br>` + (document.getElementById("consolidateResultAdmin").innerHTML || "");
+                    else document.getElementById("consolidateResultSupervisor").innerHTML = `<span style="color:green;">✅ ${file.name} → ${targetUser}</span><br>` + (document.getElementById("consolidateResultSupervisor").innerHTML || "");
+                    processed++;
+                    if(processed === files.length){
+                        if(role === 'admin' && currentUser?.role === 'admin') renderSupervisorAdminPanel(true);
+                        else if(role === 'supervisor' && (currentUser?.role === 'supervisor' || currentUser?.role === 'admin')) renderSupervisorAdminPanel(currentUser?.role === 'admin');
+                        if(currentUser?.role !== 'admin' && currentUser?.username !== 'JARANDA') { currentData = loadUserData(currentUser.username); refreshForCurrentUser(); }
+                    }
+                } catch(e){ console.warn(e); }
+            };
+            reader.readAsText(file);
+        });
+    }
+    
+    function downloadFullBackup(){ let all={}; USERS.forEach(u=>{ all[u.username]=loadUserData(u.username); }); let a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(all,null,2)],{type:'application/json'})); a.download=`backup_completo_${new Date().toISOString()}.json`; a.click(); }
+    function resetAllData() { if(confirm("⚠️ ¿BORRAR TODOS LOS DATOS?")){ USERS.forEach(u=>{ localStorage.removeItem(`proc_data_v5_${u.username}`); }); alert("Datos reiniciados. Recargando..."); location.reload(); } }
+    function agregarProceso() { let nid = currentData.nextIdProceso++; currentData.procesos.push({ id:nid, nombre:"Nuevo proceso", responsable:"", area:"", observaciones:"", estado:"Pendiente" }); persistCurrentData(); refreshForCurrentUser(); }
+    function agregarActividad() { let nid = currentData.nextIdActividad++; currentData.actividades.push({ id:nid, procesoId:currentData.procesos[0]?.id||1, actividad:"Nueva actividad", responsable:"", entradas:"", salidas:"", sistema:"", documento:"", observaciones:"" }); persistCurrentData(); refreshForCurrentUser(); }
+    function agregarReunion() { let nid = currentData.nextIdReunion++; currentData.reuniones.push({ id:nid, procesoId:currentData.procesos[0]?.id||1, tema:"Nueva reunión", participantes:"", fecha:new Date().toISOString().slice(0,10), acuerdos:"", estado:"Pendiente" }); persistCurrentData(); refreshForCurrentUser(); }
+    async function exportDirectJSON() { if(!currentUser || (currentUser.role !== 'admin' && !currentData)) { alert("No hay datos"); return; } let exportData = { usuario: currentUser.username, fechaExportacion: new Date().toISOString(), procesos: currentData?.procesos || [], actividades: currentData?.actividades || [], reuniones: currentData?.reuniones || [], hitos: currentData?.hitos || [], entregables: currentData?.entregables || [], revisiones: currentData?.revisiones || {} }; let jsonStr = JSON.stringify(exportData, null, 2); try { if('showSaveFilePicker' in window) { let handle = await window.showSaveFilePicker({ suggestedName: `mi_progreso_${currentUser.username}.json`, types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }] }); let writable = await handle.createWritable(); await writable.write(jsonStr); await writable.close(); alert("✅ Guardado en la ubicación seleccionada"); } else { let blob = new Blob([jsonStr], {type:"application/json"}); let a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`mi_progreso_${currentUser.username}.json`; a.click(); URL.revokeObjectURL(a.href); alert("✅ Descargado en carpeta Descargas"); } } catch(err) { alert("Cancelado o error"); } }
+    function importMyData(file) { let reader=new FileReader(); reader.onload=e=>{ try{ let imp=JSON.parse(e.target.result); if(imp.procesos && imp.hitos){ if (imp.hitos) imp.hitos = migrateHitosFechas(imp.hitos); Object.assign(currentData, imp); persistCurrentData(); refreshForCurrentUser(); alert("Restaurado correctamente"); } else alert("Formato inválido"); } catch(e){ alert("Error al leer"); } }; reader.readAsText(file); }
+    async function exportWordUser() { let data = currentData; let completados = data.procesos.filter(p=>p.estado==="Completado").length; let avanceTotal = data.procesos.length ? (completados/data.procesos.length*100) : 0; let hitosCompletados = data.hitos.filter(h=>h.completado).length; let entregablesCompletados = data.entregables.filter(e=>e.estado).length; let html = `<html><head><meta charset="UTF-8"><title>Reporte ${currentUser.username}</title><style>body{font-family:Arial;}</style></head><body><h1>📊 Reporte de Avance - ${currentUser.username}</h1><p>Fecha: ${new Date().toLocaleString()}</p><h2>Resumen General</h2><p>Avance de procesos: ${Math.round(avanceTotal)}% | Hitos completados: ${hitosCompletados}/${data.hitos.length} | Entregables completados: ${entregablesCompletados}/${data.entregables.length}</p><h2>Hitos</h2><table border="1"><thead><tr><th>Hito</th><th>Completado</th><th>Fecha</th></tr></thead><tbody>${data.hitos.map(h=>`<tr><td>${h.hito}</td><td>${h.completado?'✅':'❌'}</td><td>${h.fechaAvance||'-'}</td>`).join('')}</tbody></table><h2>Entregables</h2><table border="1"><thead><tr><th>Etapa</th><th>Entregable</th><th>Estado</th></tr></thead><tbody>${data.entregables.map(e=>`<tr><td>${e.etapa}</td><td>${e.entregable}</td><td>${e.estado?'✅':'❌'}</td>`).join('')}</tbody></table><h2>Recomendaciones</h2><p>${hitosCompletados < data.hitos.length ? 'Enfoque en los hitos pendientes y actualice fechas.' : '¡Excelente! Todos los hitos completados.'}</p></body></html>`; let blob = new Blob([html], {type: "application/msword"}); saveAs(blob, `reporte_${currentUser.username}.doc`); }
+    
+    function exportDetailedWordReport(role = 'admin') {
+        let users = getAllUsersData();
+        let avgGlobal = users.reduce((a,b)=>a+b.avance,0)/(users.length||1);
+        let totalHitosCompletados = users.reduce((sum,u)=> sum + (u.hitos.filter(h=>h.completado).length), 0);
+        let totalHitos = users.reduce((sum,u)=> sum + u.hitos.length, 0);
+        let totalEntregablesCompletados = users.reduce((sum,u)=> sum + (u.entregables.filter(e=>e.estado).length), 0);
+        let totalEntregables = users.reduce((sum,u)=> sum + u.entregables.length, 0);
+        let riesgo = avgGlobal < 50 ? "Alto riesgo - Se requiere intervención inmediata" : (avgGlobal < 80 ? "Riesgo medio - Monitorear avances" : "Bajo riesgo - Equipo en buen desempeño");
+        let html = `<html><head><meta charset="UTF-8"><title>Diagnóstico ${role === 'admin' ? 'Administrador' : 'Supervisora'}</title>
+        <style>body{font-family:Arial; margin:40px;} h1{color:#1f6e5c;} table{border-collapse:collapse; width:100%;} th,td{border:1px solid #ccc; padding:8px; text-align:left;} th{background:#eaf9f3;}</style></head>
+        <body><h1>📊 Reporte de Seguimiento - ${role === 'admin' ? 'Panel de Administración' : 'Panel de Supervisora'}</h1>
+        <p>Generado: ${new Date().toLocaleString()} | Responsable: ${currentUser?.username || 'Sistema'}</p>
+        <h2>📌 Resumen Ejecutivo</h2>
+        <ul><li><strong>Promedio de avance global:</strong> ${Math.round(avgGlobal)}%</li>
+        <li><strong>Rendimiento detectado:</strong> ${riesgo}</li>
+        <li><strong>Hitos completados totales:</strong> ${totalHitosCompletados} de ${totalHitos} (${totalHitos ? (totalHitosCompletados/totalHitos*100).toFixed(1) : 0}%)</li>
+        <li><strong>Entregables completados totales:</strong> ${totalEntregablesCompletados} de ${totalEntregables} (${totalEntregables ? (totalEntregablesCompletados/totalEntregables*100).toFixed(1) : 0}%)</li></ul>
+        <h2>📋 Rendimiento por Usuario</h2>
+        <table><thead><tr><th>Usuario</th><th>Avance Procesos</th><th>Hitos OK</th><th>Entregables OK</th></tr></thead><tbody>
+        ${users.map(u=>`<tr><td>${u.username}</td><td>${Math.round(u.avance)}%</td><td>${u.hitos.filter(h=>h.completado).length}/${u.hitos.length}</td><td>${u.entregables.filter(e=>e.estado).length}/${u.entregables.length}</td></tr>`).join('')}
+        </tbody></table>
+        <h2>🎯 Recomendaciones Estratégicas</h2>
+        <ul>${avgGlobal < 70 ? '<li>⚠️ Implementar reuniones de seguimiento semanal con cada usuario para acelerar hitos.</li>' : '<li>✅ Mantener el ritmo actual y reforzar buenas prácticas.</li>'}
+        ${totalHitosCompletados/totalHitos < 0.6 ? '<li>📌 Priorizar la finalización de hitos base antes de avanzar a nuevas fases.</li>' : '<li>📌 Los hitos están en buen camino, considerar optimización de recursos.</li>'}
+        <li>🔍 Revisar periódicamente las fechas de avance para garantizar alineación con el plan de días laborables.</li>
+        </ul>
+        <p><em>Reporte generado automáticamente por Suite Colaborativa de Procesos</em></p>
+        </body></html>`;
+        let blob = new Blob([html], {type:"application/msword"});
+        saveAs(blob, `diagnostico_${role}_${new Date().toISOString().slice(0,19)}.doc`);
+    }
+    
+    function refreshForCurrentUser() {
+        if(!currentUser) return;
+        if(currentUser.role === 'admin'){ renderSupervisorAdminPanel(true); }
+        else if(currentUser.role === 'supervisor'){ 
+            renderSupervisorAdminPanel(false); 
+            currentData = loadUserData(currentUser.username); 
+            renderProcesos(); renderActividades(); renderReuniones(); renderSipoc(); 
+            updateDashboardAndCharts(); renderTracking(); 
+        } else { 
+            currentData = loadUserData(currentUser.username); 
+            renderProcesos(); renderActividades(); renderReuniones(); renderSipoc(); 
+            updateDashboardAndCharts(); renderTracking(); 
+        }
+    }
+    function buildTabs() {
+        let container = document.getElementById("tabBarContainer");
+        container.innerHTML = "";
+        if(currentUser.role === 'admin'){
+            container.innerHTML = `<button class="tab-btn active" data-tab="adminDashboard">📊 Admin Dashboard</button>`;
+            document.querySelectorAll(".tab-panel").forEach(p=>p.classList.remove("active-panel"));
+            document.getElementById("adminDashboard").classList.add("active-panel");
+            renderSupervisorAdminPanel(true);
+        } else if(currentUser.role === 'supervisor'){
+            container.innerHTML = `<button class="tab-btn active" data-tab="supervisorPanel">📊 Supervisora</button><button class="tab-btn" data-tab="dashboardUser">📋 Mi Progreso</button><button class="tab-btn" data-tab="procesosUser">⚙️ Procesos</button><button class="tab-btn" data-tab="actividadesUser">📋 Actividades</button><button class="tab-btn" data-tab="reunionesUser">🎙️ Reuniones</button><button class="tab-btn" data-tab="sipocUser">🧩 SIPOC</button>`;
+            document.querySelectorAll(".tab-panel").forEach(p=>p.classList.remove("active-panel"));
+            document.getElementById("supervisorPanel").classList.add("active-panel");
+            renderSupervisorAdminPanel(false);
+            currentData = loadUserData(currentUser.username);
+            renderProcesos(); renderActividades(); renderReuniones(); renderSipoc(); 
+            updateDashboardAndCharts(); renderTracking();
+        } else {
+            container.innerHTML = `<button class="tab-btn active" data-tab="dashboardUser">📊 Tablero</button><button class="tab-btn" data-tab="procesosUser">⚙️ Procesos</button><button class="tab-btn" data-tab="actividadesUser">📋 Actividades</button><button class="tab-btn" data-tab="reunionesUser">🎙️ Reuniones</button><button class="tab-btn" data-tab="sipocUser">🧩 SIPOC</button>`;
+            document.querySelectorAll(".tab-panel").forEach(p=>p.classList.remove("active-panel"));
+            document.getElementById("dashboardUser").classList.add("active-panel");
+            currentData = loadUserData(currentUser.username);
+            renderProcesos(); renderActividades(); renderReuniones(); renderSipoc();
+            updateDashboardAndCharts(); renderTracking();
+        }
+        document.querySelectorAll(".tab-btn").forEach(btn=>btn.addEventListener("click",()=>{
+            let id=btn.dataset.tab;
+            document.querySelectorAll(".tab-panel").forEach(p=>p.classList.remove("active-panel"));
+            document.getElementById(id).classList.add("active-panel");
+            if(id==="sipocUser") renderSipoc();
+            if(id==="dashboardUser" && currentUser.role !== 'admin') { currentData = loadUserData(currentUser.username); renderTracking(); updateDashboardAndCharts(); }
+            if(id==="supervisorPanel") renderSupervisorAdminPanel(false);
+            if(id==="adminDashboard") renderSupervisorAdminPanel(true);
+        }));
+    }
+    document.getElementById("loginBtn").onclick = () => { let user=document.getElementById("loginUser").value.trim().toUpperCase(); let pass=document.getElementById("loginPass").value; let found=USERS.find(u=>u.username===user && u.password===pass); if(found){ currentUser=found; document.getElementById("loginScreen").style.display="none"; document.getElementById("mainApp").style.display="block"; document.getElementById("userNameDisplay").innerHTML=`👤 ${found.username} (${found.role==='supervisor'?'Supervisora':found.role})`; buildTabs(); refreshForCurrentUser(); } else { document.getElementById("loginError").innerText="Credenciales incorrectas"; } };
+    document.getElementById("importReportJsonBtn")?.addEventListener("click", ()=>{ let inp=document.createElement("input"); inp.type="file"; inp.accept=".json"; inp.onchange=e=>importMyData(e.target.files[0]); inp.click(); });
+    document.getElementById("exportWordUserBtn")?.addEventListener("click", exportWordUser);
+    document.getElementById("exportWordSupervisorBtn")?.addEventListener("click", ()=> exportDetailedWordReport('supervisor'));
+    document.getElementById("agregarProcesoBtn")?.addEventListener("click", agregarProceso); document.getElementById("agregarActividadBtn")?.addEventListener("click", agregarActividad); document.getElementById("agregarReunionBtn")?.addEventListener("click", agregarReunion);
+    document.getElementById("consolidateBtnAdmin")?.addEventListener("click", ()=>{ let files=document.getElementById("consolidateFileInputAdmin").files; if(files.length) consolidateFromFiles(files, 'admin'); else alert("Selecciona JSON"); });
+    document.getElementById("consolidateBtnSupervisor")?.addEventListener("click", ()=>{ let files=document.getElementById("consolidateFileInputSupervisor").files; if(files.length) consolidateFromFiles(files, 'supervisor'); else alert("Selecciona archivos JSON"); });
+    document.getElementById("downloadConsolidatedBackup")?.addEventListener("click", downloadFullBackup);
+    document.getElementById("exportWordReportBtn")?.addEventListener("click", ()=> exportDetailedWordReport('admin'));
+    document.getElementById("refreshAdminBtn")?.addEventListener("click", resetAllData);
+    document.getElementById("btnExportarJSONFijo")?.addEventListener("click", exportDirectJSON);
+    document.getElementById("closeModalBtn")?.addEventListener("click", ()=>{ document.getElementById("userDetailModal").style.display="none"; });
+    window.onclick = e => { if(e.target === document.getElementById("userDetailModal")) document.getElementById("userDetailModal").style.display="none"; };
+    function escapeHtml(str) { if(!str) return ""; return String(str).replace(/[&<>]/g, m=> m==='&'?'&amp;': m==='<'?'&lt;':'&gt;'); }
+</script>
+</body>
+</html>
