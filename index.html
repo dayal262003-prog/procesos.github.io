@@ -1213,7 +1213,6 @@
     if(!localStorage.getItem("global_procesos_detalle")) localStorage.setItem("global_procesos_detalle", JSON.stringify(datosProcesosGlobales.map(p => ({ proceso: p[0], lote: p[1], estado: p[2] || "NO INICIADO" }))));
     if(!localStorage.getItem("global_cronograma")) localStorage.setItem("global_cronograma", JSON.stringify(cronogramaData));
 </script>
-    <!-- Sección de Google Drive - Pon esto donde quieras que aparezca -->
 <div id="drive-section">
     <h3>📁 Conexión con Google Drive</h3>
     <button id="authorize_button" class="drive-button" onclick="handleAuthClick()">🔐 Autorizar Acceso</button>
