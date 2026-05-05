@@ -1,11 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <!-- Estilos mínimos para los mensajes de Drive (opcional, puedes adaptarlos) -->
-<style>
-    .drive-output { background: #f4f4f4; padding: 1rem; border-radius: 5px; font-family: monospace; margin-top: 1rem; }
-    .drive-button { padding: 10px 15px; margin: 5px; cursor: pointer; }
-</style>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>GPP | Suite Colaborativa</title>
@@ -1213,149 +1208,108 @@
     if(!localStorage.getItem("global_procesos_detalle")) localStorage.setItem("global_procesos_detalle", JSON.stringify(datosProcesosGlobales.map(p => ({ proceso: p[0], lote: p[1], estado: p[2] || "NO INICIADO" }))));
     if(!localStorage.getItem("global_cronograma")) localStorage.setItem("global_cronograma", JSON.stringify(cronogramaData));
 </script>
-<div id="drive-section">
-    <h3>📁 Conexión con Google Drive</h3>
-    <button id="authorize_button" class="drive-button" onclick="handleAuthClick()">🔐 Autorizar Acceso</button>
-    <button id="signout_button" class="drive-button" onclick="handleSignoutClick()" style="display: none;">👋 Cerrar Sesión</button>
-    <button id="list_files_button" class="drive-button" onclick="listFiles()" style="display: none;">📄 Listar Mis Archivos</button>
-    <div id="content">
-        <pre id="output" class="drive-output">Esperando acción...</pre>
+    
+    <!-- SECCIÓN DE GOOGLE DRIVE -->
+    <div id="drive-section" style="margin-top: 20px; padding: 15px; border: 1px solid #ccc; border-radius: 8px;">
+        <h3>📁 Google Drive</h3>
+        <button id="authBtn" style="padding: 10px 20px; background: #4285f4; color: white; border: none; border-radius: 5px; cursor: pointer;">🔐 Iniciar sesión</button>
+        <button id="pickerBtn" style="padding: 10px 20px; background: #34a853; color: white; border: none; border-radius: 5px; cursor: pointer; display: none;">📂 Abrir Drive</button>
+        <div id="driveOutput" style="margin-top: 15px; padding: 10px; background: #f5f5f5; border-radius: 5px; font-family: monospace; font-size: 14px;"></div>
     </div>
-</div>
-    <!-- Librerías de Google -->
-<script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="https://apis.google.com/js/api.js" async defer></script>
 
-<script>
-    const CLIENT_ID = '172866147683-jkgcqggn1g8p9098iqddijn2fjqu2a1p.apps.googleusercontent.com';
-    const API_KEY = 'AIzaSyDMMRzqfnvnW86VqY06-GKpSGlPLYZ2H_Y';
-    const SCOPES = 'https://www.googleapis.com/auth/drive.file';
+    <!-- LIBRERÍAS DE GOOGLE -->
+    <script src="https://accounts.google.com/gsi/client"></script>
+    <script src="https://apis.google.com/js/api.js"></script>
 
-    let tokenClient;
-    let gapiInited = false;
-    let gisInited = false;
-
-    const authorizeButton = document.getElementById('authorize_button');
-    const signoutButton = document.getElementById('signout_button');
-    const listFilesButton = document.getElementById('list_files_button');
-    const outputPre = document.getElementById('output');
-
-    function logMessage(message) {
-        console.log(message);
-        if (outputPre) {
-            outputPre.textContent += '\n> ' + message;
+    <!-- CÓDIGO DE CONEXIÓN CON DRIVE -->
+    <script>
+        // 🔑 CAMBIA ESTOS DOS VALORES
+        const CLIENT_ID = '172866147683-jkgcqggn1g8p9098iqddijn2fjqu2a1p.apps.googleusercontent.com';
+        const API_KEY = 'AIzaSyDMMRzqfnvnW86VqY06-GKpSGlPLYZ2H_Y';
+        
+        const SCOPES = 'https://www.googleapis.com/auth/drive.file';
+        
+        let tokenClient;
+        let accessToken = null;
+        
+        const authBtn = document.getElementById('authBtn');
+        const pickerBtn = document.getElementById('pickerBtn');
+        const output = document.getElementById('driveOutput');
+        
+        function log(msg) {
+            output.innerHTML += `<div>✅ ${msg}</div>`;
         }
-    }
-
-    function gapiLoaded() {
-        logMessage('✅ Librería GAPI cargada.');
-        gapi.client.init({
-            apiKey: API_KEY,
-            discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
-        }).then(() => {
-            logMessage('✅ GAPI inicializada con éxito.');
-            gapiInited = true;
-            maybeEnableButtons();
-        }).catch(err => {
-            logMessage('❌ Error al inicializar GAPI: ' + err);
-        });
-    }
-
-    function gisLoaded() {
-        logMessage('✅ Librería GIS cargada.');
-        tokenClient = google.accounts.oauth2.initTokenClient({
-            client_id: CLIENT_ID,
-            scope: SCOPES,
-            callback: '',
-        });
-        gisInited = true;
-        maybeEnableButtons();
-    }
-
-    function maybeEnableButtons() {
-        if (gapiInited && gisInited && authorizeButton) {
-            authorizeButton.style.display = 'block';
-            logMessage('🎉 App lista.');
+        
+        function initGapi() {
+            gapi.client.init({
+                apiKey: API_KEY,
+                discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest']
+            }).then(() => {
+                log('API lista');
+            }).catch(err => log('Error: ' + err));
         }
-    }
-
-    function handleAuthClick() {
-        tokenClient.callback = async (resp) => {
-            if (resp.error !== undefined) {
-                throw (resp);
-            }
-            logMessage('✅ Usuario autenticado correctamente.');
-            if (authorizeButton) authorizeButton.style.display = 'none';
-            if (signoutButton) signoutButton.style.display = 'block';
-            if (listFilesButton) listFilesButton.style.display = 'block';
-            if (outputPre) outputPre.textContent = '';
-            logMessage('Ya puedes listar archivos.');
-        };
-        if (gapi.client.getToken() === null) {
-            tokenClient.requestAccessToken({ prompt: 'consent' });
-        } else {
-            tokenClient.requestAccessToken({ prompt: '' });
-        }
-    }
-
-    function handleSignoutClick() {
-        const token = gapi.client.getToken();
-        if (token !== null) {
-            google.accounts.oauth2.revoke(token.access_token);
-            gapi.client.setToken('');
-            logMessage('👋 Usuario desconectado.');
-            if (authorizeButton) authorizeButton.style.display = 'block';
-            if (signoutButton) signoutButton.style.display = 'none';
-            if (listFilesButton) listFilesButton.style.display = 'none';
-            if (outputPre) outputPre.textContent = 'Esperando acción...';
-        }
-    }
-
-    async function listFiles() {
-        if (!gapi.client.getToken()) {
-            logMessage('⚠️ Inicia sesión primero.');
-            return;
-        }
-        if (outputPre) outputPre.textContent = '';
-        logMessage('📡 Listando archivos...');
-        try {
-            const response = await gapi.client.drive.files.list({
-                'pageSize': 5,
-                'fields': 'files(id, name, mimeType, createdTime)'
+        
+        function initTokenClient() {
+            tokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: CLIENT_ID,
+                scope: SCOPES,
+                callback: (resp) => {
+                    if (resp.error) return;
+                    accessToken = resp.access_token;
+                    log('✅ Conexión exitosa');
+                    authBtn.style.display = 'none';
+                    pickerBtn.style.display = 'inline-block';
+                }
             });
-            const files = response.result.files;
-            if (!files || files.length === 0) {
-                logMessage('No se encontraron archivos.');
+        }
+        
+        function login() {
+            tokenClient.requestAccessToken({ prompt: 'consent' });
+        }
+        
+        function openPicker() {
+            if (!accessToken) {
+                log('Primero inicia sesión');
                 return;
             }
-            logMessage(`📁 ${files.length} archivos:`);
-            for (let i = 0; i < files.length; i++) {
-                const file = files[i];
-                logMessage(`  - ${file.name} (${file.mimeType})`);
-            }
-        } catch (err) {
-            logMessage('❌ Error: ' + err.message);
-            if (err.status === 401) {
-                handleSignoutClick();
+            
+            const picker = new google.picker.PickerBuilder()
+                .addView(google.picker.ViewId.DOCS)
+                .addView(google.picker.ViewId.FOLDERS)
+                .setOAuthToken(accessToken)
+                .setDeveloperKey(API_KEY)
+                .setCallback(pickerCallback)
+                .build();
+            picker.setVisible(true);
+        }
+        
+        function pickerCallback(data) {
+            if (data.action === google.picker.Action.PICKED) {
+                const file = data.docs[0];
+                log(`📄 Archivo: ${file.name}`);
+                log(`🔗 ID: ${file.id}`);
+            } else if (data.action === google.picker.Action.CANCEL) {
+                log('Cancelado');
             }
         }
-    }
-
-    function gapiOnLoad() { gapi.load('client', gapiLoaded); }
-    function gisOnLoad() { gisLoaded(); }
-</script>
-<script async defer src="https://apis.google.com/js/api.js" onload="gapiOnLoad()"></script>
-<script>
-    if (typeof google !== 'undefined' && google.accounts && google.accounts.oauth2) {
-        gisLoaded();
-    } else {
-        window.addEventListener('load', () => {
-            setTimeout(() => {
-                if (typeof google !== 'undefined' && google.accounts && google.accounts.oauth2) gisLoaded();
-                else console.error('GIS no cargó');
-            }, 500);
-        });
-    }
-</script>
+        
+        function loadPicker() {
+            const script = document.createElement('script');
+            script.src = 'https://apis.google.com/js/picker.js';
+            document.body.appendChild(script);
+        }
+        
+        authBtn.onclick = login;
+        pickerBtn.onclick = openPicker;
+        
+        window.onload = () => {
+            gapi.load('client', () => {
+                initGapi();
+                initTokenClient();
+                loadPicker();
+            });
+        };
+    </script>
+    
 </body>
 </html>
