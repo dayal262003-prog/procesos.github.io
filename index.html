@@ -68,12 +68,6 @@
         .chart-container canvas { max-height: 220px; width: 100% !important; }
         .compact-table td { white-space: normal; word-break: break-word; }
         .table-wrapper-horizontal { overflow-x: auto; max-width: 100%; }
-        /* Colores para estados en tablas */
-        .estado-terminado, .estado-completado { background-color: #d4edda !important; color: #155724 !important; }
-        .estado-pendiente { background-color: #f8d7da !important; color: #721c24 !important; }
-        .estado-enproceso, .estado-progreso { background-color: #d1ecf1 !important; color: #0c5460 !important; }
-        .estado-enpausa, .estado-paused { background-color: #fff3cd !important; color: #856404 !important; }
-        .estado-noiniciado { background-color: #e9ecef !important; color: #495057 !important; }
     </style>
 </head>
 <body>
@@ -147,7 +141,7 @@
             <div class="card"><h3>📊 Rendimiento Global Equipo</h3><div class="value" id="adminGlobalDesempeño">-</div><div id="adminGlobalRiesgo"></div></div>
             <div class="card"><h3>📈 Promedio Avance Equipo</h3><div class="value" id="adminAvgAvance">0%</div></div>
         </div>
-        <div class="card"><h4>📋 Usuarios y su avance</h4><div class="table-wrapper"><table id="tablaUsuariosAdmin"><thead><tr><th>Usuario</th><th>Avance %</th><th>Acción</th></tr></thead><tbody></tbody><table></div></div>
+        <div class="card"><h4>📋 Usuarios y su avance</h4><div class="table-wrapper"><table id="tablaUsuariosAdmin"><thead><tr><th>Usuario</th><th>Avance %</th><th>Acción</th></tr></thead><tbody></tbody></table></div></div>
         <div class="card"><h3>📋 Inventario de Procesos (Lotes y Estados)</h3><div class="flex-btns"><button id="agregarFilaProcesoGlobalAdmin">➕ Agregar nuevo proceso</button></div><div class="table-wrapper"><table id="tablaProcesosGlobalAdmin"><thead><tr><th>PROCESO</th><th>LOTE</th><th>ESTADO</th><th>Acciones</th></tr></thead><tbody></tbody></table></div><div class="two-columns"><div class="col-chart"><div class="chart-container"><canvas id="pastelEstadosGlobalAdmin" style="height:200px;"></canvas></div></div></div></div>
         <div class="card"><h3>📅 Cronograma de Lotes</h3><div class="flex-btns"><button id="agregarFilaCronogramaAdmin">➕ Agregar nueva fila</button></div><div class="table-wrapper-horizontal"><div class="table-wrapper" style="max-height:400px;"><table id="tablaCronogramaAdmin"><thead><tr><th>LOTE</th><th># PROCESOS</th><th>DETALLE DE PROCESOS</th><th>FECHA INICIO</th><th>FECHA INTERVENCIÓN</th><th>FECHA CIERRE</th><th>RECURSO ASIGNADO</th><th>RECURSO CONTRASTE</th><th>ESTADO</th><th>OBSERVACIONES</th><th>Acciones</th></tr></thead><tbody></tbody></table></div></div><div class="two-columns"><div class="col-chart"><div class="chart-container"><canvas id="pastelEstadosCronoAdmin" style="height:200px;"></canvas></div></div></div></div>
         <div class="card"><h3>📊 Progreso del Equipo (Consolidado)</h3><div class="table-wrapper"><table id="tablaProgresoConsolidadoAdmin"><thead><tr><th>USUARIO</th><th>LOTE</th><th>PROCESO</th><th>R. ASIGNADO</th><th>R. SOPORTE</th><th>AVANCE (%)</th><th>FASE</th><th>OBSERVACIONES</th></tr></thead><tbody></tbody></table></div><div><h4>📈 Avance General (Promedio): <span id="avanceGeneralPromedioAdmin">0%</span></h4></div><div class="two-columns"><div class="col-chart"><div class="chart-container"><canvas id="pastelAvanceProcesosAdmin" style="height:200px;"></canvas></div></div><div class="col-chart"><div class="chart-container"><canvas id="pastelAvanceRecursosAdmin" style="height:200px;"></canvas></div></div></div></div>
@@ -164,7 +158,7 @@
     <div id="actividadesUser" class="tab-panel"><div class="toolbar"><button id="agregarActividadBtn">➕ Agregar actividad</button></div><div class="table-wrapper"><table id="tablaActividades"><thead><tr><th>ID</th><th>Proceso</th><th>Actividad</th><th>Rol</th><th>Entradas</th><th>Salidas</th><th>Sistema</th><th>Documento</th><th>Observaciones</th><th>Acciones</th></tr></thead><tbody></tbody></table></div></div>
     <div id="reunionesUser" class="tab-panel"><div class="toolbar"><button id="agregarReunionBtn">➕ Registrar reunión</button></div><div class="table-wrapper"><table id="tablaReuniones"><thead><tr><th>ID</th><th>Proceso</th><th>Tema</th><th>Participantes</th><th>Fecha</th><th>Acuerdos</th><th>Estado</th><th>Acciones</th></tr></thead><tbody></tbody></table></div></div>
     <div id="sipocUser" class="tab-panel"><h3>SIPOC Automático</h3><div class="table-wrapper"><table id="tablaSipoc"><thead><tr><th>Proveedor</th><th>Entrada</th><th>Actividad</th><th>Rol</th><th>Proceso</th><th>Salida</th><th>Cliente</th></tr></thead><tbody></tbody></table></div></div>
-    <div id="miProgresoPersonal" class="tab-panel"><h2>📋 Mi Progreso Personal</h2><div class="flex-btns"><button id="agregarFilaProgreso">➕ Agregar asignación</button></div><div class="table-wrapper"><table id="tablaProgresoPersonal"><thead><tr><th>LOTE</th><th>PROCESO</th><th>R. ASIGNADO</th><th>R. DE SOPORTE</th><th>AVANCE DE PROCESO (%)</th><th>FASE EN CURSO</th><th>OBSERVACIONES</th><th>Acciones</th></tr></thead><tbody></tbody></table></div></div>
+    <div id="miProgresoPersonal" class="tab-panel"><h2>📋 Mi Progreso Personal</h2><div class="flex-btns"><button id="agregarFilaProgreso">➕ Agregar asignación</button><button id="exportarExcelPlannerBtn" class="secondary">📊 Exportar Excel (Mi Planner)</button></div><div class="table-wrapper"><table id="tablaProgresoPersonal"><thead><tr><th>LOTE</th><th>PROCESO</th><th>R. ASIGNADO</th><th>R. DE SOPORTE</th><th>AVANCE DE PROCESO (%)</th><th>FASE EN CURSO</th><th>OBSERVACIONES</th><th>Acciones</th></tr></thead><tbody></tbody></table></div></div>
     <div id="plannerPersonal" class="tab-panel"><h2>📋 Mi Planner Personal</h2><div class="flex-btns"><button id="agregarFilaPlanner">➕ Nueva actividad</button><button id="exportarExcelMiPlannerBtn" class="secondary">📊 Exportar Excel Planner</button></div><div class="table-wrapper"><table id="tablaPlannerPersonal"><thead><tr><th>ACTIVIDAD</th><th>FECHA DE INICIO</th><th>FECHA DE CIERRE</th><th>PRIORIDAD</th><th>ASIGNACIÓN</th><th>ESTATUS</th><th>OBSERVACIONES</th><th>Acciones</th></tr></thead><tbody></tbody></table></div></div>
 
     <footer>✓ Avance automático = promedio de hitos, entregables y revisiones. Planner con colores semáforo.</footer>
@@ -188,6 +182,7 @@
     let currentData = null;
 
     // Datos iniciales con tiempos corregidos: Prework:2, Construcción:3, Documentación:4, Implementación:5, Cierre:1
+    const diasAcumuladosPlan = [0, 2, 5, 9, 14, 15]; // índices 0-5
     const planAcumulado = [0, 2, 5, 9, 14, 15];
     
     const defaultHitosBase = [
@@ -209,6 +204,7 @@
     ];
     const defaultRevisiones = { mejoraContinua: false, tecnologiaSistemas: false };
 
+    // Cronograma con recursos cambiados a iniciales: DA, AL, IS, MB, MC, DB
     let cronogramaData = [
         [1,1,"AS-PR-10106 ETIQUETADO Y ENCARTONADO","2026-04-22","2026-04-25","2026-04-28","IS","DA","COMPLETADO",""],
         [2,1,"AS-PR-10303 GESTIÓN DE VENTA DE SUBPRODUCTO","2026-04-23","2026-04-26","2026-04-29","AL","MB","COMPLETADO",""],
@@ -313,26 +309,19 @@
         if(tbodyE){
             tbodyE.innerHTML = "";
             currentData.entregables.forEach((ent, idx) => { 
-                tbodyE.innerHTML += `<tr>
-                    <td>${escapeHtml(ent.etapa)}</td>
-                    <td>${escapeHtml(ent.entregable)}</td>
-                    <td style="text-align:center"><input type="checkbox" class="entregable-check" data-idx="${idx}" ${ent.estado ? "checked" : ""}></td>
-                </tr>`; 
+                tbodyE.innerHTML += `<tr><td>${escapeHtml(ent.etapa)}</td><td>${escapeHtml(ent.entregable)}</td><td style="text-align:center"><input type="checkbox" class="entregable-check" data-idx="${idx}" ${ent.estado ? "checked" : ""}></td></tr>`; 
             });
             document.querySelectorAll(".entregable-check").forEach(cb => cb.addEventListener("change", (e) => { let idx=parseInt(e.target.dataset.idx); currentData.entregables[idx].estado=e.target.checked; persistCurrentData(); refreshForCurrentUser(); }));
         }
         
         let tbodyR = document.querySelector("#tablaRevisiones tbody");
         if(tbodyR){
-            tbodyR.innerHTML = `<tr>
-                <td>Estado actual</td>
-                <td style="text-align:center"><input type="checkbox" id="checkMejora" ${currentData.revisiones.mejoraContinua ? "checked" : ""}></td>
-                <td style="text-align:center"><input type="checkbox" id="checkTecno" ${currentData.revisiones.tecnologiaSistemas ? "checked" : ""}></td>
-            </tr>`;
+            tbodyR.innerHTML = `<tr><td>Estado actual</td><td style="text-align:center"><input type="checkbox" id="checkMejora" ${currentData.revisiones.mejoraContinua ? "checked" : ""}></td><td style="text-align:center"><input type="checkbox" id="checkTecno" ${currentData.revisiones.tecnologiaSistemas ? "checked" : ""}></td></tr>`;
             document.getElementById("checkMejora")?.addEventListener("change", (e) => { currentData.revisiones.mejoraContinua = e.target.checked; persistCurrentData(); refreshForCurrentUser(); });
             document.getElementById("checkTecno")?.addEventListener("change", (e) => { currentData.revisiones.tecnologiaSistemas = e.target.checked; persistCurrentData(); refreshForCurrentUser(); });
         }
         
+        // Gráfico entregables con escala fija 0-100
         const ctxEnt = document.getElementById('entregablesChart')?.getContext('2d');
         if(ctxEnt){
             let etapas = [...new Set(currentData.entregables.map(e=>e.etapa))];
@@ -358,44 +347,29 @@
         const ctxLine = document.getElementById('hitoLineChart')?.getContext('2d');
         if(ctxLine){
             if(hitoLineChart) hitoLineChart.destroy();
-            // Calcular días reales acumulados basados en fechas de avance
-            let realDias = [];
-            let acumulado = 0;
-            for(let i = 0; i < currentData.hitos.length; i++) {
-                let h = currentData.hitos[i];
-                if(h.completado && h.fechaAvance) {
-                    let diasDesdeInicio = contarDiasLaborables(inicioPlan, new Date(h.fechaAvance));
-                    if(diasDesdeInicio > 0) acumulado = diasDesdeInicio;
+            let realDias = currentData.hitos.map((h, idx) => {
+                if(h.fechaAvance) {
+                    let diasBase = 0;
+                    for(let i=0; i<=idx; i++) diasBase += currentData.hitos[i].tiempo;
+                    return diasBase;
                 }
-                realDias.push(acumulado);
-            }
+                return null;
+            });
             hitoLineChart = new Chart(ctxLine, { 
                 type: 'line', 
                 data: { 
                     labels: currentData.hitos.map(h=>h.hito), 
                     datasets: [
-                        { label: 'Plan ideal', data: planAcumulado.slice(1), borderColor: '#2c6e5c', borderWidth: 3, fill: false, tension: 0.1 },
-                        { label: 'Real', data: realDias, borderColor: '#e67e22', borderWidth: 3, fill: false, tension: 0.1, pointBackgroundColor: '#e67e22', pointBorderColor: '#e67e22', pointRadius: 5 }
+                        { label: 'Plan ideal', data: planAcumulado.slice(1), borderColor: '#2c6e5c', borderWidth: 2, fill: false, tension: 0.1 },
+                        { label: 'Real', data: realDias, borderColor: '#e67e22', borderWidth: 2, fill: false, tension: 0.1 }
                     ] 
                 },
-                options: { responsive: true, maintainAspectRatio: true, scales: { y: { title: { display: true, text: 'Días acumulados' }, beginAtZero: true } } }
+                options: { responsive: true, maintainAspectRatio: true, scales: { y: { title: { display: true, text: 'Días acumulados' } } } }
             });
         }
     }
 
-    // Aplicar colores a las celdas según estado
-    function applyStatusColors() {
-        // Colores para estados en tablas
-        document.querySelectorAll('td').forEach(td => {
-            let texto = td.innerText.trim().toUpperCase();
-            if(texto === 'COMPLETADO' || texto === 'TERMINADO') td.classList.add('estado-completado');
-            else if(texto === 'PENDIENTE') td.classList.add('estado-pendiente');
-            else if(texto === 'EN PROCESO') td.classList.add('estado-enproceso');
-            else if(texto === 'EN PAUSA') td.classList.add('estado-enpausa');
-            else if(texto === 'NO INICIADO') td.classList.add('estado-noiniciado');
-        });
-    }
-
+    // Resto de funciones (procesos, actividades, reuniones, SIPOC, progreso personal, planner)
     function renderProcesos() {
         let tbody = document.querySelector("#tablaProcesos tbody");
         if(!tbody) return;
@@ -418,13 +392,11 @@
                 selectEstado.appendChild(option);
             });
             selectEstado.addEventListener("change", (e) => { handleGenericEdit(e, "procesos"); refreshForCurrentUser(); });
-            let estadoCell = tr.insertCell(5);
-            estadoCell.appendChild(selectEstado);
+            tr.insertCell(5).appendChild(selectEstado);
             let delBtn = document.createElement("button"); delBtn.textContent="🗑️"; delBtn.onclick=()=>{ eliminarEntidad("procesos", proc.id); };
             tr.insertCell(6).appendChild(delBtn);
         });
         attachEditEvents();
-        applyStatusColors();
     }
 
     function attachEditEvents() {
@@ -477,7 +449,6 @@
             tr.insertCell(9).appendChild(delBtn);
         });
         document.querySelectorAll(".act-edit").forEach(el => el.addEventListener("change", (e) => { handleGenericEdit(e, "actividades"); refreshForCurrentUser(); }));
-        applyStatusColors();
     }
 
     function renderReuniones() {
@@ -519,7 +490,6 @@
             tr.insertCell(7).appendChild(delBtn);
         });
         document.querySelectorAll(".ren-edit").forEach(el => el.addEventListener("change", (e) => { handleGenericEdit(e, "reuniones"); refreshForCurrentUser(); }));
-        applyStatusColors();
     }
 
     function renderSipoc() {
@@ -562,17 +532,16 @@
         let avanceAuto = calcularAvanceUsuario(currentUser.username);
         data.forEach((row, idx) => {
             let tr = tbody.insertRow();
-            tr.insertCell(0).innerHTML = `<input type="text" value="${escapeHtml(row.lote||'')}" class="edit-progreso-user" data-idx="${idx}" data-field="lote" style="width:70px;">`;
-            tr.insertCell(1).innerHTML = `<input type="text" value="${escapeHtml(row.proceso||'')}" class="edit-progreso-user" data-idx="${idx}" data-field="proceso" style="min-width:200px;">`;
-            tr.insertCell(2).innerHTML = `<input type="text" value="${escapeHtml(row.asignado||'')}" class="edit-progreso-user" style="width:80px;" data-idx="${idx}" data-field="asignado">`;
-            tr.insertCell(3).innerHTML = `<input type="text" value="${escapeHtml(row.soporte||'')}" class="edit-progreso-user" style="width:80px;" data-idx="${idx}" data-field="soporte">`;
+            tr.insertCell(0).innerHTML = `<input type="text" value="${escapeHtml(row.lote||'')}" class="edit-progreso-user" data-idx="${idx}" data-field="lote">`;
+            tr.insertCell(1).innerHTML = `<input type="text" value="${escapeHtml(row.proceso||'')}" class="edit-progreso-user" data-idx="${idx}" data-field="proceso">`;
+            tr.insertCell(2).innerHTML = `<input type="text" value="${escapeHtml(row.asignado||'')}" class="edit-progreso-user" data-idx="${idx}" data-field="asignado">`;
+            tr.insertCell(3).innerHTML = `<input type="text" value="${escapeHtml(row.soporte||'')}" class="edit-progreso-user" data-idx="${idx}" data-field="soporte">`;
             tr.insertCell(4).innerHTML = `<span class="avance-auto-val">${avanceAuto}%</span>`;
             let selectFase = document.createElement("select");
             ["EN PROCESO","PENDIENTE","EN PAUSA","COMPLETADO"].forEach(f => { let opt=document.createElement("option"); opt.value=f; opt.textContent=f; if(row.fase===f) opt.selected=true; selectFase.appendChild(opt); });
             selectFase.addEventListener("change", e => { row.fase=e.target.value; saveProgresoPersonal(data); });
-            let faseCell = tr.insertCell(5);
-            faseCell.appendChild(selectFase);
-            tr.insertCell(6).innerHTML = `<textarea class="edit-progreso-user" data-idx="${idx}" data-field="obs" rows="2" style="min-width:120px;">${escapeHtml(row.obs||'')}</textarea>`;
+            tr.insertCell(5).appendChild(selectFase);
+            tr.insertCell(6).innerHTML = `<textarea class="edit-progreso-user" data-idx="${idx}" data-field="obs" rows="2">${escapeHtml(row.obs||'')}</textarea>`;
             let delBtn = document.createElement("button"); delBtn.textContent="🗑️"; delBtn.onclick=()=>{ data.splice(idx,1); saveProgresoPersonal(data); initTablaProgresoPersonal(); };
             tr.insertCell(7).appendChild(delBtn);
         });
@@ -587,7 +556,6 @@
             saveProgresoPersonal(data);
             initTablaProgresoPersonal();
         };
-        applyStatusColors();
     }
 
     function getPlannerPersonal() { return JSON.parse(localStorage.getItem(`planner_personal_${currentUser.username}`) || "[]"); }
@@ -619,7 +587,7 @@
             ["COMPLETADO","EN PAUSA","PENDIENTE","EN PROCESO"].forEach(s => { let opt=document.createElement("option"); opt.value=s; opt.textContent=s; if(row.estatus===s) opt.selected=true; selectEstatus.appendChild(opt); });
             selectEstatus.addEventListener("change", e => { row.estatus=e.target.value; savePlannerPersonal(data); });
             tr.insertCell(5).appendChild(selectEstatus);
-            tr.insertCell(6).innerHTML = `<textarea class="edit-planner-user" data-idx="${idx}" data-field="obs" rows="2" style="min-width:120px;">${escapeHtml(row.obs||'')}</textarea>`;
+            tr.insertCell(6).innerHTML = `<textarea class="edit-planner-user" data-idx="${idx}" data-field="obs" rows="2">${escapeHtml(row.obs||'')}</textarea>`;
             let delBtn = document.createElement("button"); delBtn.textContent="🗑️"; delBtn.onclick=()=>{ data.splice(idx,1); savePlannerPersonal(data); initTablaPlannerPersonal(); };
             tr.insertCell(7).appendChild(delBtn);
         });
@@ -635,8 +603,9 @@
             initTablaPlannerPersonal();
         };
         
+        // Exportar Excel
         document.getElementById("exportarExcelMiPlannerBtn").onclick = () => exportPlannerToExcel();
-        applyStatusColors();
+        document.getElementById("exportarExcelPlannerBtn").onclick = () => exportPlannerToExcel();
     }
     
     function exportPlannerToExcel() {
@@ -690,8 +659,8 @@
         let data = loadUserData(username);
         let avance = calcularAvanceUsuario(username);
         let html = `<h3>📊 Reporte - ${username}</h3><div class="alert-box">💡 Avance automático: ${avance}%</div>
-        <h4>📈 Hitos</h4><div class="table-wrapper"><table border="1"><thead><tr><th>Hito</th><th>Completado</th><th>Fecha Real</th></tr></thead><tbody>${data.hitos.map(h=>`<tr><td>${h.hito}</td><td>${h.completado?'✅':'❌'}</td><td>${h.fechaAvance||'-'}</td>`).join('')}</tbody></table></div>
-        <h4>📦 Entregables</h4><div class="table-wrapper"><table border="1"><thead><tr><th>Etapa</th><th>Entregable</th><th>Estado</th></tr></thead><tbody>${data.entregables.map(e=>`<tr><td>${e.etapa}</td><td>${e.entregable}</td><td>${e.estado?'✅':'❌'}</td>`).join('')}</tbody></table></div>`;
+        <h4>📈 Hitos</h4><div class="table-wrapper"><table border="1"><thead><tr><th>Hito</th><th>Completado</th><th>Fecha Real</th></tr></thead><tbody>${data.hitos.map(h=>`<tr><td>${h.hito}</td><td>${h.completado?'✅':'❌'}</td><td>${h.fechaAvance||'-'}</td></tr>`).join('')}</tbody></table></div>
+        <h4>📦 Entregables</h4><div class="table-wrapper"><table border="1"><thead><tr><th>Etapa</th><th>Entregable</th><th>Estado</th></tr></thead><tbody>${data.entregables.map(e=>`<tr><td>${e.etapa}</td><td>${e.entregable}</td><td>${e.estado?'✅':'❌'}</td></tr>`).join('')}</tbody></table></div>`;
         document.getElementById("modalReportBody").innerHTML = html;
         document.getElementById("userDetailModal").style.display = "flex";
     }
@@ -730,8 +699,7 @@
                 if(item.estado === opt) option.selected = true;
                 select.appendChild(option);
             });
-            let estadoCell = row.insertCell(2);
-            estadoCell.appendChild(select);
+            row.insertCell(2).appendChild(select);
             let delBtn = document.createElement("button"); delBtn.textContent="🗑️"; delBtn.onclick=()=>{ data.splice(idx,1); saveProcesosGlobales(data); initTablaProcesosGlobal(panel); actualizarGraficoPastelGlobal(panel); };
             row.insertCell(3).appendChild(delBtn);
         });
@@ -748,7 +716,6 @@
             saveProcesosGlobales(data);
             initTablaProcesosGlobal(panel);
         };
-        applyStatusColors();
     }
     
     function actualizarGraficoPastelGlobal(panel) {
@@ -808,8 +775,7 @@
             let selectEstado = document.createElement("select");
             ["COMPLETADO","PENDIENTE","EN PROCESO"].forEach(e => { let opt=document.createElement("option"); opt.value=e; opt.textContent=e; if(row[8]===e) opt.selected=true; selectEstado.appendChild(opt); });
             selectEstado.addEventListener("change", e => { row[8]=e.target.value; saveCronograma(data); actualizarGraficoPastelCrono(panel); });
-            let estadoCell = tr.insertCell(8);
-            estadoCell.appendChild(selectEstado);
+            tr.insertCell(8).appendChild(selectEstado);
             tr.insertCell(9).innerHTML = `<textarea class="edit-crono-${panel}" data-idx="${idx}" data-field="9" rows="2" style="min-width:120px;">${escapeHtml(row[9]||"")}</textarea>`;
             let delBtn = document.createElement("button"); delBtn.textContent="🗑️"; delBtn.onclick=()=>{ data.splice(idx,1); saveCronograma(data); initTablaCronograma(panel); };
             tr.insertCell(10).appendChild(delBtn);
@@ -826,7 +792,6 @@
             saveCronograma(data);
             initTablaCronograma(panel);
         };
-        applyStatusColors();
     }
     
     function actualizarGraficoPastelCrono(panel) {
@@ -880,7 +845,6 @@
             if(window[`chartRec${panel}`]) window[`chartRec${panel}`].destroy();
             window[`chartRec${panel}`] = new Chart(ctxRec, { type: 'pie', data: { labels: recLabels, datasets: [{ data: recAvgs }] }, options: { responsive: true, maintainAspectRatio: true } });
         }
-        applyStatusColors();
     }
 
     function initTablaPlannerConsolidado(panel, filtroUsuario = "todos") {
@@ -945,7 +909,6 @@
         let ctxEst = document.getElementById(`plannerPorEstadoChart${panel}`).getContext('2d');
         if(window[`chartPlannerEst${panel}`]) window[`chartPlannerEst${panel}`].destroy();
         window[`chartPlannerEst${panel}`] = new Chart(ctxEst, { type: 'doughnut', data: { labels: [...porEstado.keys()], datasets: [{ data: [...porEstado.values()], backgroundColor: ['#2ecc71','#f1c40f','#e74c3c','#3498db'] }] }, options: { responsive: true, maintainAspectRatio: true } });
-        applyStatusColors();
     }
 
     function consolidateFromFiles(files, role) {
@@ -1040,7 +1003,7 @@
         <h1>Reporte de Avance - ${currentUser.username}</h1>
         <p>Avance automático: ${av}%</p>
         <h2>Planner Personal</h2><div class="table-wrapper"><table border="1"><thead><tr><th>Actividad</th><th>Inicio</th><th>Cierre</th><th>Prioridad</th><th>Asignación</th><th>Estatus</th><th>Obs</th></tr></thead>
-        <tbody>${planner.map(p=>`<tr><td>${p.actividad}</td><td>${p.fechaInicio||''}</td><td>${p.fechaCierre||''}</td><td>${p.prioridad}</td><td>${p.asignacion}</td><td>${p.estatus}</td><td>${p.obs||''}</td>`).join('')}</tbody></table></div></body></html>`;
+        <tbody>${planner.map(p=>`<tr><td>${p.actividad}</td><td>${p.fechaInicio||''}</td><td>${p.fechaCierre||''}</td><td>${p.prioridad}</td><td>${p.asignacion}</td><td>${p.estatus}</td><td>${p.obs||''}</td></tr>`).join('')}</tbody></table></div></body></html>`;
         let blob = new Blob([html], {type:"application/msword"}); saveAs(blob, `reporte_${currentUser.username}.doc`); 
     }
     
@@ -1052,8 +1015,8 @@
         let html = `<html><head><meta charset="UTF-8"><title>Diagnóstico ${role}</title></head><body>
         <h1>Reporte de Seguimiento - ${role}</h1>
         <p>Promedio de avance global: ${Math.round(avg)}%</p>
-        <h2>Rendimiento por Usuario</h2><div class="table-wrapper"><table border="1"><thead><tr><th>Usuario</th><th>Avance %</th></tr></thead><tbody>${users.map(u=>`<tr><td>${u.username}</td><td>${u.avance}%</td>`).join('')}</tbody></table></div>
-        <h2>Planner Consolidado</h2><div class="table-wrapper"><table border="1"><thead><tr><th>Usuario</th><th>Actividad</th><th>Estatus</th></tr></thead><tbody>${allPlanner.map(p=>`<tr><td>${p.nombre}</td><td>${p.actividad}</td><td>${p.estatus}</td>`).join('')}</tbody></table></div>
+        <h2>Rendimiento por Usuario</h2><div class="table-wrapper"><table border="1"><thead><tr><th>Usuario</th><th>Avance %</th></tr></thead><tbody>${users.map(u=>`<tr><td>${u.username}</td><td>${u.avance}%</td></tr>`).join('')}</tbody></table></div>
+        <h2>Planner Consolidado</h2><div class="table-wrapper"><table border="1"><thead><tr><th>Usuario</th><th>Actividad</th><th>Estatus</th></tr></thead><tbody>${allPlanner.map(p=>`<tr><td>${p.nombre}</td><td>${p.actividad}</td><td>${p.estatus}</td></tr>`).join('')}</tbody></table></div>
         <h2>Análisis General</h2><p>El equipo presenta un avance promedio del ${Math.round(avg)}%. ${avg<50?'Se recomienda reforzar las áreas críticas y revisar los hitos pendientes.':avg<80?'El avance es moderado, continuar con las buenas prácticas.':'Excelente desempeño, mantener la dinámica de trabajo.'}</p>
         </body></html>`;
         let blob = new Blob([html], {type:"application/msword"}); saveAs(blob, `diagnostico_${role}.doc`);
@@ -1125,7 +1088,6 @@
             document.getElementById("totalActividades").innerText = currentData?.actividades.length || 0;
             document.getElementById("totalReuniones").innerText = currentData?.reuniones.length || 0;
         }
-        applyStatusColors();
     }
 
     function buildTabs() {
@@ -1141,7 +1103,7 @@
             }
             ensureTab("tablaProcesosGlobalAdmin", `<div class="card"><h3>📋 Inventario de Procesos</h3><div class="flex-btns"><button id="agregarFilaProcesoGlobalAdmin">➕ Agregar nuevo proceso</button></div><div class="table-wrapper"><table id="tablaProcesosGlobalAdmin"><thead><tr><th>PROCESO</th><th>LOTE</th><th>ESTADO</th><th>Acciones</th></tr></thead><tbody></tbody></table></div><div class="two-columns"><div class="col-chart"><div class="chart-container"><canvas id="pastelEstadosGlobalAdmin" style="height:200px;"></canvas></div></div></div></div>`);
             ensureTab("tablaCronogramaAdmin", `<div class="card"><h3>📅 Cronograma de Lotes</h3><div class="flex-btns"><button id="agregarFilaCronogramaAdmin">➕ Agregar nueva fila</button></div><div class="table-wrapper-horizontal"><div class="table-wrapper"><table id="tablaCronogramaAdmin"><thead><tr><th>LOTE</th><th># PROCESOS</th><th>DETALLE DE PROCESOS</th><th>FECHA INICIO</th><th>FECHA INTERVENCIÓN</th><th>FECHA CIERRE</th><th>RECURSO ASIGNADO</th><th>RECURSO CONTRASTE</th><th>ESTADO</th><th>OBSERVACIONES</th><th>Acciones</th></tr></thead><tbody></tbody></table></div></div><div class="two-columns"><div class="col-chart"><div class="chart-container"><canvas id="pastelEstadosCronoAdmin" style="height:200px;"></canvas></div></div></div></div>`);
-            ensureTab("tablaProgresoConsolidadoAdmin", `<div class="card"><h3>📊 Progreso del Equipo (Consolidado)</h3><div class="table-wrapper"><table id="tablaProgresoConsolidadoAdmin"><thead><tr><th>USUARIO</th><th>LOTE</th><th>PROCESO</th><th>R. ASIGNADO</th><th>R. SOPORTE</th><th>AVANCE (%)</th><th>FASE</th><th>OBSERVACIONES</th></table></thead><tbody></tbody></table></div><div><h4>📈 Avance General: <span id="avanceGeneralPromedioAdmin">0%</span></h4></div><div class="two-columns"><div class="col-chart"><div class="chart-container"><canvas id="pastelAvanceProcesosAdmin" style="height:200px;"></canvas></div></div><div class="col-chart"><div class="chart-container"><canvas id="pastelAvanceRecursosAdmin" style="height:200px;"></canvas></div></div></div></div>`);
+            ensureTab("tablaProgresoConsolidadoAdmin", `<div class="card"><h3>📊 Progreso del Equipo (Consolidado)</h3><div class="table-wrapper"><table id="tablaProgresoConsolidadoAdmin"><thead><tr><th>USUARIO</th><th>LOTE</th><th>PROCESO</th><th>R. ASIGNADO</th><th>R. SOPORTE</th><th>AVANCE (%)</th><th>FASE</th><th>OBSERVACIONES</th></tr></thead><tbody></tbody></table></div><div><h4>📈 Avance General: <span id="avanceGeneralPromedioAdmin">0%</span></h4></div><div class="two-columns"><div class="col-chart"><div class="chart-container"><canvas id="pastelAvanceProcesosAdmin" style="height:200px;"></canvas></div></div><div class="col-chart"><div class="chart-container"><canvas id="pastelAvanceRecursosAdmin" style="height:200px;"></canvas></div></div></div></div>`);
             ensureTab("tablaPlannerConsolidadoAdmin", `<div class="card"><h3>📊 Planner Consolidado del Equipo</h3><div class="filter-bar"><label>🔍 Filtrar por usuario:</label><select id="filtroPlannerAdmin"><option value="todos">Todos los usuarios</option></select><button id="aplicarFiltroAdmin" class="secondary">Aplicar filtro</button></div><div class="table-wrapper"><table id="tablaPlannerConsolidadoAdmin"><thead><tr><th>NOMBRE</th><th>ACTIVIDAD</th><th>FECHA INICIO</th><th>FECHA CIERRE</th><th>PRIORIDAD</th><th>ASIGNACIÓN</th><th>ESTATUS</th><th>OBSERVACIONES</th></tr></thead><tbody></tbody></table></div><div class="two-columns"><div class="col-chart"><div class="chart-container"><canvas id="plannerPorUsuarioChartAdmin" style="height:200px;"></canvas></div></div><div class="col-chart"><div class="chart-container"><canvas id="plannerPorAsignacionChartAdmin" style="height:200px;"></canvas></div></div><div class="col-chart"><div class="chart-container"><canvas id="plannerPorEstadoChartAdmin" style="height:200px;"></canvas></div></div></div></div>`);
             document.querySelectorAll(".tab-panel").forEach(p=>p.classList.remove("active-panel"));
             document.getElementById("adminDashboard").classList.add("active-panel");
@@ -1162,13 +1124,12 @@
             document.querySelectorAll(".tab-panel").forEach(p=>p.classList.remove("active-panel"));
             document.getElementById(id).classList.add("active-panel");
             if(id === "miProgresoPersonal") initTablaProgresoPersonal();
-            if(id === "plannerPersonal") { initTablaPlannerPersonal(); }
+            if(id === "plannerPersonal") initTablaPlannerPersonal();
             if(id === "sipocUser") renderSipoc();
             if(id === "tablaProcesosGlobalAdmin" || id === "tablaProcesosGlobalSuper") refreshForCurrentUser();
             if(id === "tablaCronogramaAdmin" || id === "tablaCronogramaSuper") refreshForCurrentUser();
             if(id === "tablaProgresoConsolidadoAdmin" || id === "tablaProgresoConsolidadoSuper") refreshForCurrentUser();
             if(id === "tablaPlannerConsolidadoAdmin" || id === "tablaPlannerConsolidadoSuper") refreshForCurrentUser();
-            applyStatusColors();
         });
     }
 
@@ -1193,8 +1154,8 @@
     document.getElementById("exportWordReportBtn")?.addEventListener("click", ()=> exportDetailedWordReport('admin'));
     document.getElementById("consolidateBtnSupervisor")?.addEventListener("click", ()=>{ let files=document.getElementById("consolidateFileInputSupervisor").files; if(files.length) consolidateFromFiles(files, 'supervisor'); else alert("Selecciona archivos JSON"); });
     document.getElementById("consolidateBtnAdmin")?.addEventListener("click", ()=>{ let files=document.getElementById("consolidateFileInputAdmin").files; if(files.length) consolidateFromFiles(files, 'admin'); else alert("Selecciona archivos JSON"); });
-    document.getElementById("aplicarFiltroSuper")?.addEventListener("click", () => { initTablaPlannerConsolidado("Super", document.getElementById("filtroPlannerSuper").value); applyStatusColors(); });
-    document.getElementById("aplicarFiltroAdmin")?.addEventListener("click", () => { initTablaPlannerConsolidado("Admin", document.getElementById("filtroPlannerAdmin").value); applyStatusColors(); });
+    document.getElementById("aplicarFiltroSuper")?.addEventListener("click", () => { initTablaPlannerConsolidado("Super", document.getElementById("filtroPlannerSuper").value); });
+    document.getElementById("aplicarFiltroAdmin")?.addEventListener("click", () => { initTablaPlannerConsolidado("Admin", document.getElementById("filtroPlannerAdmin").value); });
     document.getElementById("agregarProcesoBtn")?.addEventListener("click", agregarProceso);
     document.getElementById("agregarActividadBtn")?.addEventListener("click", agregarActividad);
     document.getElementById("agregarReunionBtn")?.addEventListener("click", agregarReunion);
@@ -1208,36 +1169,59 @@
     if(!localStorage.getItem("global_procesos_detalle")) localStorage.setItem("global_procesos_detalle", JSON.stringify(datosProcesosGlobales.map(p => ({ proceso: p[0], lote: p[1], estado: p[2] || "NO INICIADO" }))));
     if(!localStorage.getItem("global_cronograma")) localStorage.setItem("global_cronograma", JSON.stringify(cronogramaData));
 </script>
+    <!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Mi App con Google Drive</title>
+    <style>
+        body { font-family: Arial; margin: 2rem; }
+        button { padding: 12px 24px; font-size: 16px; margin: 10px; cursor: pointer; }
+        #output { margin-top: 20px; padding: 15px; background: #f0f0f0; border-radius: 8px; font-family: monospace; }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+
+    <h1>📁 Descargar archivos de Google Drive</h1>
+    <p>Haz clic en "Iniciar sesión", autoriza, y luego selecciona un archivo para descargar.</p>
     
-    <!-- SECCIÓN DE GOOGLE DRIVE -->
-    <div id="drive-section" style="margin-top: 20px; padding: 15px; border: 1px solid #ccc; border-radius: 8px;">
-        <h3>📁 Google Drive</h3>
-        <button id="authBtn" style="padding: 10px 20px; background: #4285f4; color: white; border: none; border-radius: 5px; cursor: pointer;">🔐 Iniciar sesión</button>
-        <button id="pickerBtn" style="padding: 10px 20px; background: #34a853; color: white; border: none; border-radius: 5px; cursor: pointer; display: none;">📂 Abrir Drive</button>
-        <div id="driveOutput" style="margin-top: 15px; padding: 10px; background: #f5f5f5; border-radius: 5px; font-family: monospace; font-size: 14px;"></div>
+    <button id="authBtn" style="background: #4285f4; color: white; border: none; border-radius: 5px;">🔐 Iniciar sesión</button>
+    <button id="pickerBtn" style="background: #34a853; color: white; border: none; border-radius: 5px; display: none;">📂 Seleccionar archivo</button>
+    
+    <div id="output">
+        <p>Esperando acción...</p>
     </div>
 
-    <!-- LIBRERÍAS DE GOOGLE -->
     <script src="https://accounts.google.com/gsi/client"></script>
     <script src="https://apis.google.com/js/api.js"></script>
 
-    <!-- CÓDIGO DE CONEXIÓN CON DRIVE -->
     <script>
-        // 🔑 CAMBIA ESTOS DOS VALORES
+        // 🔑 REEMPLAZA CON TUS DATOS REALES
         const CLIENT_ID = '172866147683-jkgcqggn1g8p9098iqddijn2fjqu2a1p.apps.googleusercontent.com';
         const API_KEY = 'AIzaSyDMMRzqfnvnW86VqY06-GKpSGlPLYZ2H_Y';
         
-        const SCOPES = 'https://www.googleapis.com/auth/drive.file';
+        // CAMBIADO a drive.readonly para poder descargar archivos existentes
+        const SCOPES = 'https://www.googleapis.com/auth/drive.readonly';
         
         let tokenClient;
         let accessToken = null;
         
         const authBtn = document.getElementById('authBtn');
         const pickerBtn = document.getElementById('pickerBtn');
-        const output = document.getElementById('driveOutput');
+        const output = document.getElementById('output');
         
-        function log(msg) {
-            output.innerHTML += `<div>✅ ${msg}</div>`;
+        function log(msg, isError = false) {
+            const div = document.createElement('div');
+            div.textContent = msg;
+            div.style.color = isError ? 'red' : 'green';
+            output.appendChild(div);
+            console.log(msg);
+        }
+        
+        function clearLog() {
+            output.innerHTML = '';
         }
         
         function initGapi() {
@@ -1245,8 +1229,8 @@
                 apiKey: API_KEY,
                 discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest']
             }).then(() => {
-                log('API lista');
-            }).catch(err => log('Error: ' + err));
+                log('✅ API de Google inicializada');
+            }).catch(err => log('❌ Error en API: ' + err, true));
         }
         
         function initTokenClient() {
@@ -1254,9 +1238,12 @@
                 client_id: CLIENT_ID,
                 scope: SCOPES,
                 callback: (resp) => {
-                    if (resp.error) return;
+                    if (resp.error) {
+                        log('❌ Error: ' + resp.error, true);
+                        return;
+                    }
                     accessToken = resp.access_token;
-                    log('✅ Conexión exitosa');
+                    log('✅ Sesión iniciada correctamente');
                     authBtn.style.display = 'none';
                     pickerBtn.style.display = 'inline-block';
                 }
@@ -1264,18 +1251,23 @@
         }
         
         function login() {
+            clearLog();
             tokenClient.requestAccessToken({ prompt: 'consent' });
         }
         
         function openPicker() {
             if (!accessToken) {
-                log('Primero inicia sesión');
+                log('Primero inicia sesión', true);
                 return;
             }
             
+            log('📂 Abriendo selector de archivos...');
+            
+            const view = new google.picker.View(google.picker.ViewId.DOCS);
+            view.setIncludeFolders(true);
+            
             const picker = new google.picker.PickerBuilder()
-                .addView(google.picker.ViewId.DOCS)
-                .addView(google.picker.ViewId.FOLDERS)
+                .addView(view)
                 .setOAuthToken(accessToken)
                 .setDeveloperKey(API_KEY)
                 .setCallback(pickerCallback)
@@ -1283,19 +1275,80 @@
             picker.setVisible(true);
         }
         
+        // ============================================
+        // === FUNCIÓN DE DESCARGA QUE SÍ FUNCIONA ===
+        // ============================================
         function pickerCallback(data) {
             if (data.action === google.picker.Action.PICKED) {
                 const file = data.docs[0];
-                log(`📄 Archivo: ${file.name}`);
-                log(`🔗 ID: ${file.id}`);
+                const fileId = file.id;
+                const fileName = file.name;
+                
+                log(`📄 Descargando: ${fileName}...`);
+                
+                const xhr = new XMLHttpRequest();
+                xhr.open('GET', `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, true);
+                xhr.setRequestHeader('Authorization', 'Bearer ' + accessToken);
+                xhr.responseType = 'blob';
+                
+                xhr.onload = function() {
+                    if (xhr.status === 200) {
+                        const url = window.URL.createObjectURL(xhr.response);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = fileName;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        window.URL.revokeObjectURL(url);
+                        log(`✅ Descargado: ${fileName}`);
+                    } else if (xhr.status === 403) {
+                        log('📄 Documento de Google, exportando a PDF...');
+                        exportGoogleDocument(fileId, fileName);
+                    } else {
+                        log(`❌ Error ${xhr.status}: No se pudo descargar`, true);
+                    }
+                };
+                
+                xhr.onerror = function() {
+                    log('❌ Error de red', true);
+                };
+                
+                xhr.send();
             } else if (data.action === google.picker.Action.CANCEL) {
-                log('Cancelado');
+                log('Selección cancelada');
             }
+        }
+        
+        function exportGoogleDocument(fileId, fileName) {
+            const xhr = new XMLHttpRequest();
+            xhr.open('GET', `https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=application/pdf`, true);
+            xhr.setRequestHeader('Authorization', 'Bearer ' + accessToken);
+            xhr.responseType = 'blob';
+            
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    const url = window.URL.createObjectURL(xhr.response);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = fileName + '.pdf';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                    log(`✅ Exportado: ${fileName}.pdf`);
+                } else {
+                    log(`❌ Error al exportar: ${xhr.status}`, true);
+                }
+            };
+            
+            xhr.send();
         }
         
         function loadPicker() {
             const script = document.createElement('script');
             script.src = 'https://apis.google.com/js/picker.js';
+            script.onload = () => log('✅ Picker cargado');
             document.body.appendChild(script);
         }
         
@@ -1310,6 +1363,5 @@
             });
         };
     </script>
-    
 </body>
 </html>
