@@ -4,10 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>GPP | Suite Colaborativa</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif; }
         body { background: #f4f7fc; padding: 24px; font-size: 15px; line-height: 1.45; color: #1a2c3e; }
@@ -154,7 +155,7 @@
 
     <!-- Pestañas comunes para usuarios (procesos, actividades, reuniones, sipoc, mi progreso, mi planner) -->
     <div id="procesosUser" class="tab-panel"><div class="toolbar"><button id="agregarProcesoBtn">➕ Agregar proceso</button></div><div class="scrollable-table"><table id="tablaProcesos"><thead><tr><th>ID</th><th>Nombre</th><th>Responsable</th><th>Área</th><th>Observaciones</th><th>Estado</th><th>Acciones</th></tr></thead><tbody></tbody></table></div></div>
-    <div id="actividadesUser" class="tab-panel"><div class="toolbar"><button id="agregarActividadBtn">➕ Agregar actividad</button></div><div class="scrollable-table"><table id="tablaActividades"><thead><tr><th>ID</th><th>Proceso</th><th>Actividad</th><th>Rol</th><th>Entradas</th><th>Salidas</th><th>Sistema</th><th>Documento</th><th>Observaciones</th><th>Acciones</th></tr></thead><tbody></tbody></table></div></div>
+    <div id="actividadesUser" class="tab-panel"><div class="toolbar"><button id="agregarActividadBtn">➕ Agregar actividad</button></div><div class="scrollable-table"><table id="tablaActividades"><thead><tr><th>ID</th><th>Proceso</th><th>Actividad</th><th>Rol</th><th>Proveedor</th><th>Entradas</th><th>Salidas</th><th>Clientes</th><th>Sistema</th><th>Documento</th><th>Observaciones</th><th>Acciones</th></tr></thead><tbody></tbody></table></div></div>
     <div id="reunionesUser" class="tab-panel"><div class="toolbar"><button id="agregarReunionBtn">➕ Registrar reunión</button></div><div class="scrollable-table"><table id="tablaReuniones"><thead><tr><th>ID</th><th>Proceso</th><th>Tema</th><th>Participantes</th><th>Fecha</th><th>Acuerdos</th><th>Estado</th><th>Acciones</th></tr></thead><tbody></tbody></table></div></div>
     <div id="sipocUser" class="tab-panel"><h3>SIPOC Automático</h3><div class="scrollable-table"><table id="tablaSipoc"><thead><tr><th>Proveedor</th><th>Entrada</th><th>Actividad</th><th>Rol</th><th>Proceso</th><th>Salida</th><th>Cliente</th></tr></thead><tbody></tbody></table></div></div>
     <div id="miProgresoPersonal" class="tab-panel"><h2>📋 Mi Progreso Personal</h2><div class="flex-btns"><button id="agregarFilaProgreso">➕ Agregar asignación</button></div><div class="scrollable-table"><table id="tablaProgresoPersonal" style="min-width: 1000px;"><thead><tr><th>LOTE</th><th>PROCESO</th><th>R. ASIGNADO</th><th>R. DE SOPORTE</th><th>AVANCE DE PROCESO (%)</th><th>FASE EN CURSO</th><th>OBSERVACIONES</th><th>Acciones</th></tr></thead><tbody></tbody></table></div></div>
