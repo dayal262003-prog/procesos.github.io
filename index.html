@@ -1169,199 +1169,427 @@
     if(!localStorage.getItem("global_procesos_detalle")) localStorage.setItem("global_procesos_detalle", JSON.stringify(datosProcesosGlobales.map(p => ({ proceso: p[0], lote: p[1], estado: p[2] || "NO INICIADO" }))));
     if(!localStorage.getItem("global_cronograma")) localStorage.setItem("global_cronograma", JSON.stringify(cronogramaData));
 </script>
-    <!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>Mi App con Google Drive</title>
-    <style>
-        body { font-family: Arial; margin: 2rem; }
-        button { padding: 12px 24px; font-size: 16px; margin: 10px; cursor: pointer; }
-        #output { margin-top: 20px; padding: 15px; background: #f0f0f0; border-radius: 8px; font-family: monospace; }
-        .success { color: green; }
-        .error { color: red; }
-    </style>
-</head>
-<body>
+    /* Copyright 2022 Google LLC
 
-    <h1>📁 Descargar archivos de Google Drive</h1>
-    <p>Haz clic en "Iniciar sesión", autoriza, y luego selecciona un archivo para descargar.</p>
-    
-    <button id="authBtn" style="background: #4285f4; color: white; border: none; border-radius: 5px;">🔐 Iniciar sesión</button>
-    <button id="pickerBtn" style="background: #34a853; color: white; border: none; border-radius: 5px; display: none;">📂 Seleccionar archivo</button>
-    
-    <div id="output">
-        <p>Esperando acción...</p>
-    </div>
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
 
-    <script src="https://accounts.google.com/gsi/client"></script>
-    <script src="https://apis.google.com/js/api.js"></script>
+     http://www.apache.org/licenses/LICENSE-2.0
 
-    <script>
-        // 🔑 REEMPLAZA CON TUS DATOS REALES
-        const CLIENT_ID = '172866147683-jkgcqggn1g8p9098iqddijn2fjqu2a1p.apps.googleusercontent.com';
-        const API_KEY = 'AIzaSyDMMRzqfnvnW86VqY06-GKpSGlPLYZ2H_Y';
-        
-        // CAMBIADO a drive.readonly para poder descargar archivos existentes
-        const SCOPES = 'https://www.googleapis.com/auth/drive.readonly';
-        
-        let tokenClient;
-        let accessToken = null;
-        
-        const authBtn = document.getElementById('authBtn');
-        const pickerBtn = document.getElementById('pickerBtn');
-        const output = document.getElementById('output');
-        
-        function log(msg, isError = false) {
-            const div = document.createElement('div');
-            div.textContent = msg;
-            div.style.color = isError ? 'red' : 'green';
-            output.appendChild(div);
-            console.log(msg);
-        }
-        
-        function clearLog() {
-            output.innerHTML = '';
-        }
-        
-        function initGapi() {
-            gapi.client.init({
-                apiKey: API_KEY,
-                discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest']
-            }).then(() => {
-                log('✅ API de Google inicializada');
-            }).catch(err => log('❌ Error en API: ' + err, true));
-        }
-        
-        function initTokenClient() {
-            tokenClient = google.accounts.oauth2.initTokenClient({
-                client_id: CLIENT_ID,
-                scope: SCOPES,
-                callback: (resp) => {
-                    if (resp.error) {
-                        log('❌ Error: ' + resp.error, true);
-                        return;
-                    }
-                    accessToken = resp.access_token;
-                    log('✅ Sesión iniciada correctamente');
-                    authBtn.style.display = 'none';
-                    pickerBtn.style.display = 'inline-block';
-                }
-            });
-        }
-        
-        function login() {
-            clearLog();
-            tokenClient.requestAccessToken({ prompt: 'consent' });
-        }
-        
-        function openPicker() {
-            if (!accessToken) {
-                log('Primero inicia sesión', true);
-                return;
-            }
-            
-            log('📂 Abriendo selector de archivos...');
-            
-            const view = new google.picker.View(google.picker.ViewId.DOCS);
-            view.setIncludeFolders(true);
-            
-            const picker = new google.picker.PickerBuilder()
-                .addView(view)
-                .setOAuthToken(accessToken)
-                .setDeveloperKey(API_KEY)
-                .setCallback(pickerCallback)
-                .build();
-            picker.setVisible(true);
-        }
-        
-        // ============================================
-        // === FUNCIÓN DE DESCARGA QUE SÍ FUNCIONA ===
-        // ============================================
-        function pickerCallback(data) {
-            if (data.action === google.picker.Action.PICKED) {
-                const file = data.docs[0];
-                const fileId = file.id;
-                const fileName = file.name;
-                
-                log(`📄 Descargando: ${fileName}...`);
-                
-                const xhr = new XMLHttpRequest();
-                xhr.open('GET', `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, true);
-                xhr.setRequestHeader('Authorization', 'Bearer ' + accessToken);
-                xhr.responseType = 'blob';
-                
-                xhr.onload = function() {
-                    if (xhr.status === 200) {
-                        const url = window.URL.createObjectURL(xhr.response);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = fileName;
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                        window.URL.revokeObjectURL(url);
-                        log(`✅ Descargado: ${fileName}`);
-                    } else if (xhr.status === 403) {
-                        log('📄 Documento de Google, exportando a PDF...');
-                        exportGoogleDocument(fileId, fileName);
-                    } else {
-                        log(`❌ Error ${xhr.status}: No se pudo descargar`, true);
-                    }
-                };
-                
-                xhr.onerror = function() {
-                    log('❌ Error de red', true);
-                };
-                
-                xhr.send();
-            } else if (data.action === google.picker.Action.CANCEL) {
-                log('Selección cancelada');
-            }
-        }
-        
-        function exportGoogleDocument(fileId, fileName) {
-            const xhr = new XMLHttpRequest();
-            xhr.open('GET', `https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=application/pdf`, true);
-            xhr.setRequestHeader('Authorization', 'Bearer ' + accessToken);
-            xhr.responseType = 'blob';
-            
-            xhr.onload = function() {
-                if (xhr.status === 200) {
-                    const url = window.URL.createObjectURL(xhr.response);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = fileName + '.pdf';
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    window.URL.revokeObjectURL(url);
-                    log(`✅ Exportado: ${fileName}.pdf`);
-                } else {
-                    log(`❌ Error al exportar: ${xhr.status}`, true);
-                }
-            };
-            
-            xhr.send();
-        }
-        
-        function loadPicker() {
-            const script = document.createElement('script');
-            script.src = 'https://apis.google.com/js/picker.js';
-            script.onload = () => log('✅ Picker cargado');
-            document.body.appendChild(script);
-        }
-        
-        authBtn.onclick = login;
-        pickerBtn.onclick = openPicker;
-        
-        window.onload = () => {
-            gapi.load('client', () => {
-                initGapi();
-                initTokenClient();
-                loadPicker();
-            });
-        };
-    </script>
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.*/
+
+// [START drive_download_file]
+
+import com.google.api.client.googleapis.json.GoogleJsonResponseException;
+import com.google.api.client.http.HttpRequestInitializer;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.gson.GsonFactory;
+import com.google.api.services.drive.Drive;
+import com.google.api.services.drive.DriveScopes;
+import com.google.auth.http.HttpCredentialsAdapter;
+import com.google.auth.oauth2.GoogleCredentials;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.util.Arrays;
+
+/* Class to demonstrate use-case of drive's download file. */
+public class DownloadFile {
+
+  /**
+   * Download a Document file in PDF format.
+   *
+   * @param realFileId file ID of any workspace document format file.
+   * @return byte array stream if successful, {@code null} otherwise.
+   * @throws IOException if service account credentials file not found.
+   */
+  public static ByteArrayOutputStream downloadFile(String realFileId) throws IOException {
+        /* Load pre-authorized user credentials from the environment.
+           TODO(developer) - See https://developers.google.com/identity for
+          guides on implementing OAuth2 for your application.*/
+    GoogleCredentials credentials = GoogleCredentials.getApplicationDefault()
+        .createScoped(Arrays.asList(DriveScopes.DRIVE_FILE));
+    HttpRequestInitializer requestInitializer = new HttpCredentialsAdapter(
+        credentials);
+
+    // Build a new authorized API client service.
+    Drive service = new Drive.Builder(new NetHttpTransport(),
+        GsonFactory.getDefaultInstance(),
+        requestInitializer)
+        .setApplicationName("Drive samples")
+        .build();
+
+    try {
+      OutputStream outputStream = new ByteArrayOutputStream();
+
+      service.files().get(realFileId)
+          .executeMediaAndDownloadTo(outputStream);
+
+      return (ByteArrayOutputStream) outputStream;
+    } catch (GoogleJsonResponseException e) {
+      // TODO(developer) - handle error appropriately
+      System.err.println("Unable to move file: " + e.getDetails());
+      throw e;
+    }
+  }
+}
+// [END drive_download_file]
+    import com.google.api.client.googleapis.json.GoogleJsonResponseException;
+import com.google.api.client.http.FileContent;
+import com.google.api.client.http.HttpRequestInitializer;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.gson.GsonFactory;
+import com.google.api.services.drive.Drive;
+import com.google.api.services.drive.DriveScopes;
+import com.google.api.services.drive.model.File;
+import com.google.auth.http.HttpCredentialsAdapter;
+import com.google.auth.oauth2.GoogleCredentials;
+import java.io.IOException;
+import java.util.Arrays;
+
+/* Class to demonstrate use of Drive insert file API */
+public class UploadBasic {
+
+  /**
+   * Upload new file.
+   *
+   * @return Inserted file metadata if successful, {@code null} otherwise.
+   * @throws IOException if service account credentials file not found.
+   */
+  public static String uploadBasic() throws IOException {
+    // Load pre-authorized user credentials from the environment.
+    // TODO(developer) - See https://developers.google.com/identity for
+    // guides on implementing OAuth2 for your application.
+    GoogleCredentials credentials = GoogleCredentials.getApplicationDefault()
+        .createScoped(Arrays.asList(DriveScopes.DRIVE_FILE));
+    HttpRequestInitializer requestInitializer = new HttpCredentialsAdapter(
+        credentials);
+
+    // Build a new authorized API client service.
+    Drive service = new Drive.Builder(new NetHttpTransport(),
+        GsonFactory.getDefaultInstance(),
+        requestInitializer)
+        .setApplicationName("Drive samples")
+        .build();
+    // Upload file photo.jpg on drive.
+    File fileMetadata = new File();
+    fileMetadata.setName("photo.jpg");
+    // File's content.
+    java.io.File filePath = new java.io.File("files/photo.jpg");
+    // Specify media type and file-path for file.
+    FileContent mediaContent = new FileContent("image/jpeg", filePath);
+    try {
+      File file = service.files().create(fileMetadata, mediaContent)
+          .setFields("id")
+          .execute();
+      System.out.println("File ID: " + file.getId());
+      return file.getId();
+    } catch (GoogleJsonResponseException e) {
+      // TODO(developer) - handle error appropriately
+      System.err.println("Unable to upload file: " + e.getDetails());
+      throw e;
+    }
+  }
+}
+    import com.google.api.client.http.HttpRequestInitializer;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.gson.GsonFactory;
+import com.google.api.services.drive.Drive;
+import com.google.api.services.drive.DriveScopes;
+import com.google.api.services.drive.model.File;
+import com.google.api.services.drive.model.FileList;
+import com.google.auth.http.HttpCredentialsAdapter;
+import com.google.auth.oauth2.GoogleCredentials;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+/* Class to demonstrate use-case of search files. */
+public class SearchFile {
+
+  /**
+   * Search for specific set of files.
+   *
+   * @return search result list.
+   * @throws IOException if service account credentials file not found.
+   */
+  public static List<File> searchFile() throws IOException {
+           /*Load pre-authorized user credentials from the environment.
+           TODO(developer) - See https://developers.google.com/identity for
+           guides on implementing OAuth2 for your application.*/
+    GoogleCredentials credentials = GoogleCredentials.getApplicationDefault()
+        .createScoped(Arrays.asList(DriveScopes.DRIVE_FILE));
+    HttpRequestInitializer requestInitializer = new HttpCredentialsAdapter(
+        credentials);
+
+    // Build a new authorized API client service.
+    Drive service = new Drive.Builder(new NetHttpTransport(),
+        GsonFactory.getDefaultInstance(),
+        requestInitializer)
+        .setApplicationName("Drive samples")
+        .build();
+
+    List<File> files = new ArrayList<File>();
+
+    String pageToken = null;
+    do {
+      FileList result = service.files().list()
+          .setQ("mimeType='image/jpeg'")
+          .setSpaces("drive")
+          .setFields("nextPageToken, files(id, title)")
+          .setPageToken(pageToken)
+          .execute();
+      for (File file : result.getFiles()) {
+        System.out.printf("Found file: %s (%s)\n",
+            file.getName(), file.getId());
+      }
+
+      files.addAll(result.getFiles());
+
+      pageToken = result.getNextPageToken();
+    } while (pageToken != null);
+
+    return files;
+  }
+}
+        POST https://www.googleapis.com/drive/v3/files/FILE_ID/permissions
+        {
+  "requests": [
+    {
+        "type": "user",
+        "role": "commenter",
+        "emailAddress": "alex@altostrat.com"
+    }
+  ]
+}
+        {
+    "kind": "drive#permission",
+    "id": "PERMISSION_ID",
+    "type": "user",
+    "role": "commenter"
+}
+        import com.google.api.client.googleapis.batch.BatchRequest;
+import com.google.api.client.googleapis.batch.json.JsonBatchCallback;
+import com.google.api.client.googleapis.json.GoogleJsonError;
+import com.google.api.client.googleapis.json.GoogleJsonResponseException;
+import com.google.api.client.http.HttpHeaders;
+import com.google.api.client.http.HttpRequestInitializer;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.gson.GsonFactory;
+import com.google.api.services.drive.Drive;
+import com.google.api.services.drive.DriveScopes;
+import com.google.api.services.drive.model.Permission;
+import com.google.auth.http.HttpCredentialsAdapter;
+import com.google.auth.oauth2.GoogleCredentials;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+/* Class to demonstrate use-case of modify permissions. */
+public class ShareFile {
+
+  /**
+   * Batch permission modification.
+   * realFileId file Id.
+   * realUser User Id.
+   * realDomain Domain of the user ID.
+   *
+   * @return list of modified permissions if successful, {@code null} otherwise.
+   * @throws IOException if service account credentials file not found.
+   */
+  public static List<String> shareFile(String realFileId, String realUser, String realDomain)
+      throws IOException {
+        /* Load pre-authorized user credentials from the environment.
+         TODO(developer) - See https://developers.google.com/identity for
+         guides on implementing OAuth2 for your application.application*/
+    GoogleCredentials credentials = GoogleCredentials.getApplicationDefault()
+        .createScoped(Arrays.asList(DriveScopes.DRIVE_FILE));
+    HttpRequestInitializer requestInitializer = new HttpCredentialsAdapter(
+        credentials);
+
+    // Build a new authorized API client service.
+    Drive service = new Drive.Builder(new NetHttpTransport(),
+        GsonFactory.getDefaultInstance(),
+        requestInitializer)
+        .setApplicationName("Drive samples")
+        .build();
+
+    final List<String> ids = new ArrayList<String>();
+
+
+    JsonBatchCallback<Permission> callback = new JsonBatchCallback<Permission>() {
+      @Override
+      public void onFailure(GoogleJsonError e,
+                            HttpHeaders responseHeaders)
+          throws IOException {
+        // Handle error
+        System.err.println(e.getMessage());
+      }
+
+      @Override
+      public void onSuccess(Permission permission,
+                            HttpHeaders responseHeaders)
+          throws IOException {
+        System.out.println("Permission ID: " + permission.getId());
+
+        ids.add(permission.getId());
+
+      }
+    };
+    BatchRequest batch = service.batch();
+    Permission userPermission = new Permission()
+        .setType("user")
+        .setRole("writer");
+
+    userPermission.setEmailAddress(realUser);
+    try {
+      service.permissions().create(realFileId, userPermission)
+          .setFields("id")
+          .queue(batch, callback);
+
+      Permission domainPermission = new Permission()
+          .setType("domain")
+          .setRole("reader");
+
+      domainPermission.setDomain(realDomain);
+
+      service.permissions().create(realFileId, domainPermission)
+          .setFields("id")
+          .queue(batch, callback);
+
+      batch.execute();
+
+      return ids;
+    } catch (GoogleJsonResponseException e) {
+      // TODO(developer) - handle error appropriately
+      System.err.println("Unable to modify permission: " + e.getDetails());
+      throw e;
+    }
+  }
+}
+
+    import com.google.api.client.googleapis.json.GoogleJsonResponseException;
+import com.google.api.client.http.HttpRequestInitializer;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.gson.GsonFactory;
+import com.google.api.services.drive.Drive;
+import com.google.api.services.drive.DriveScopes;
+import com.google.api.services.drive.model.File;
+import com.google.auth.http.HttpCredentialsAdapter;
+import com.google.auth.oauth2.GoogleCredentials;
+import java.io.IOException;
+import java.util.Arrays;
+
+/* Class to demonstrate Drive's create shortcut use-case */
+public class CreateShortcut {
+
+  /**
+   * Creates shortcut for file.
+   *
+   * @throws IOException if service account credentials file not found.
+   */
+  public static String createShortcut() throws IOException {
+        /* Load pre-authorized user credentials from the environment.
+        TODO(developer) - See https://developers.google.com/identity for
+        guides on implementing OAuth2 for your application.*/
+    GoogleCredentials credentials = GoogleCredentials.getApplicationDefault()
+        .createScoped(Arrays.asList(DriveScopes.DRIVE_FILE));
+    HttpRequestInitializer requestInitializer = new HttpCredentialsAdapter(
+        credentials);
+    // Build a new authorized API client service.
+    Drive service = new Drive.Builder(new NetHttpTransport(),
+        GsonFactory.getDefaultInstance(),
+        requestInitializer)
+        .setApplicationName("Drive samples")
+        .build();
+    try {
+      // Create Shortcut for file.
+      File fileMetadata = new File();
+      fileMetadata.setName("Project plan");
+      fileMetadata.setMimeType("application/vnd.google-apps.drive-sdk");
+
+      File file = service.files().create(fileMetadata)
+          .setFields("id")
+          .execute();
+      System.out.println("File ID: " + file.getId());
+      return file.getId();
+    } catch (GoogleJsonResponseException e) {
+      // TODO(developer) - handle error appropriately
+      System.err.println("Unable to create shortcut: " + e.getDetails());
+      throw e;
+    }
+  }
+}
+        import com.google.api.client.googleapis.json.GoogleJsonResponseException;
+import com.google.api.client.http.FileContent;
+import com.google.api.client.http.HttpRequestInitializer;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.gson.GsonFactory;
+import com.google.api.services.drive.Drive;
+import com.google.api.services.drive.DriveScopes;
+import com.google.api.services.drive.model.File;
+import com.google.auth.http.HttpCredentialsAdapter;
+import com.google.auth.oauth2.GoogleCredentials;
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collections;
+
+/**
+ * Class to demonstrate use-case of create file in the application data folder.
+ */
+public class UploadAppData {
+
+  /**
+   * Creates a file in the application data folder.
+   *
+   * @return Created file's Id.
+   */
+  public static String uploadAppData() throws IOException {
+        /*Load pre-authorized user credentials from the environment.
+        TODO(developer) - See https://developers.google.com/identity for
+        guides on implementing OAuth2 for your application.*/
+    GoogleCredentials credentials = null;
+    try {
+      credentials = GoogleCredentials.getApplicationDefault()
+          .createScoped(Arrays.asList(DriveScopes.DRIVE_APPDATA));
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+    HttpRequestInitializer requestInitializer = new HttpCredentialsAdapter(
+        credentials);
+
+    // Build a new authorized API client service.
+    Drive service = new Drive.Builder(new NetHttpTransport(),
+        GsonFactory.getDefaultInstance(),
+        requestInitializer)
+        .setApplicationName("Drive samples")
+        .build();
+    try {
+      // File's metadata.
+      File fileMetadata = new File();
+      fileMetadata.setName("config.json");
+      fileMetadata.setParents(Collections.singletonList("appDataFolder"));
+      java.io.File filePath = new java.io.File("files/config.json");
+      FileContent mediaContent = new FileContent("application/json", filePath);
+      File file = service.files().create(fileMetadata, mediaContent)
+          .setFields("id")
+          .execute();
+      System.out.println("File ID: " + file.getId());
+      return file.getId();
+    } catch (GoogleJsonResponseException e) {
+      // TODO(developer) - handle error appropriately
+      System.err.println("Unable to create file: " + e.getDetails());
+      throw e;
+    }
+  }
+
+}
 </body>
 </html>
