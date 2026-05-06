@@ -9,6 +9,11 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+    
+    <!-- Librerías de Google Drive -->
+    <script src="https://accounts.google.com/gsi/client"></script>
+    <script src="https://apis.google.com/js/api.js"></script>
+    
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif; }
         body { background: #f4f7fc; padding: 24px; font-size: 15px; line-height: 1.45; color: #1a2c3e; }
@@ -34,6 +39,8 @@
         button.danger { background: #b33; }
         button.danger:hover { background: #922; }
         button.secondary { background: #607d73; }
+        button.drive-btn { background: #4285f4; }
+        button.drive-btn:hover { background: #3367d6; }
         .table-wrapper { overflow-x: auto; overflow-y: auto; max-height: 500px; border-radius: 20px; border: 1px solid #deece7; margin: 15px 0; }
         table { width: 100%; border-collapse: collapse; font-size: 0.8rem; min-width: 600px; }
         th, td { border: 1px solid #deece7; padding: 10px 8px; text-align: left; vertical-align: top; white-space: nowrap; }
@@ -68,6 +75,10 @@
         .chart-container canvas { max-height: 220px; width: 100% !important; }
         .compact-table td { white-space: normal; word-break: break-word; }
         .table-wrapper-horizontal { overflow-x: auto; max-width: 100%; }
+        .drive-status { display: inline-block; margin-left: 15px; font-size: 12px; padding: 4px 12px; border-radius: 20px; background: #e8f0fe; }
+        .drive-status.connected { background: #d4edda; color: #155724; }
+        .drive-status.disconnected { background: #f8d7da; color: #721c24; }
+        .drive-file-list { max-height: 200px; overflow-y: auto; font-size: 12px; margin-top: 10px; }
     </style>
 </head>
 <body>
@@ -96,6 +107,27 @@
             <div class="card"><h3>📋 Actividades totales</h3><div class="value" id="totalActividades">0</div></div>
             <div class="card"><h3>📅 Reuniones registradas</h3><div class="value" id="totalReuniones">0</div></div>
         </div>
+        
+        <!-- Barra de Google Drive -->
+        <div class="card" style="background: #f8f9fa;">
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+                <div>
+                    <h3>☁️ Google Drive</h3>
+                    <p style="font-size: 12px;">Guarda tu planner en la nube o carga versiones anteriores</p>
+                </div>
+                <div>
+                    <button id="connectDriveBtn" class="drive-btn">🔐 Conectar Drive</button>
+                    <button id="saveToDriveBtn" class="drive-btn" style="background:#34a853;" disabled>💾 Guardar en Drive</button>
+                    <button id="loadFromDriveBtn" class="drive-btn" style="background:#fbbc04;color:#333;" disabled>📂 Cargar desde Drive</button>
+                    <span id="driveStatus" class="drive-status disconnected">⚠️ Desconectado</span>
+                </div>
+            </div>
+            <div id="driveFileList" class="drive-file-list" style="display:none;">
+                <strong>📁 Mis archivos en Drive:</strong>
+                <div id="driveFilesContainer"></div>
+            </div>
+        </div>
+        
         <div class="card">
             <h3>📊 Seguimiento de Hitos (Plan vs Real)</h3>
             <div class="info-linea">🟢 Línea verde: plan ideal &nbsp;&nbsp; 🟠 Línea naranja: progreso real</div>
@@ -168,6 +200,16 @@
 <div id="userDetailModal" class="modal"><div class="modal-content"><h3 id="modalTitle">Reporte detallado</h3><div id="modalReportBody"></div><button id="closeModalBtn">Cerrar</button></div></div>
 
 <script>
+    // ================== CONFIGURACIÓN DE GOOGLE DRIVE ==================
+    // 🔴🔴🔴 ¡CAMBIA ESTOS VALORES POR LOS TUYOS! 🔴🔴🔴
+    const DRIVE_CLIENT_ID = 'TU_CLIENT_ID.apps.googleusercontent.com';  // ← Reemplaza aquí
+    const DRIVE_API_KEY = 'TU_API_KEY';  // ← Reemplaza aquí
+    
+    let driveAccessToken = null;
+    let driveConnected = false;
+    const DRIVE_FOLDER_NAME = 'GPP_Planners';
+    let driveFolderId = null;
+    
     // ================== USUARIOS Y DATOS GLOBALES ==================
     const USERS = [
         { username: "MBARREZUETA", password: "M123", role: "user" },
@@ -181,8 +223,8 @@
     let currentUser = null;
     let currentData = null;
 
-    // Datos iniciales con tiempos corregidos: Prework:2, Construcción:3, Documentación:4, Implementación:5, Cierre:1
-    const diasAcumuladosPlan = [0, 2, 5, 9, 14, 15]; // índices 0-5
+    // Datos iniciales con tiempos corregidos
+    const diasAcumuladosPlan = [0, 2, 5, 9, 14, 15];
     const planAcumulado = [0, 2, 5, 9, 14, 15];
     
     const defaultHitosBase = [
@@ -204,7 +246,6 @@
     ];
     const defaultRevisiones = { mejoraContinua: false, tecnologiaSistemas: false };
 
-    // Cronograma con recursos cambiados a iniciales: DA, AL, IS, MB, MC, DB
     let cronogramaData = [
         [1,1,"AS-PR-10106 ETIQUETADO Y ENCARTONADO","2026-04-22","2026-04-25","2026-04-28","IS","DA","COMPLETADO",""],
         [2,1,"AS-PR-10303 GESTIÓN DE VENTA DE SUBPRODUCTO","2026-04-23","2026-04-26","2026-04-29","AL","MB","COMPLETADO",""],
@@ -284,7 +325,235 @@
         }); 
     }
 
-    // Funciones de renderizado
+    // ================== FUNCIONES DE GOOGLE DRIVE ==================
+    
+    function updateDriveUI() {
+        const statusSpan = document.getElementById('driveStatus');
+        const saveBtn = document.getElementById('saveToDriveBtn');
+        const loadBtn = document.getElementById('loadFromDriveBtn');
+        
+        if (driveConnected && driveAccessToken) {
+            statusSpan.textContent = '✅ Conectado a Drive';
+            statusSpan.className = 'drive-status connected';
+            if (saveBtn) saveBtn.disabled = false;
+            if (loadBtn) loadBtn.disabled = false;
+        } else {
+            statusSpan.textContent = '⚠️ Desconectado';
+            statusSpan.className = 'drive-status disconnected';
+            if (saveBtn) saveBtn.disabled = true;
+            if (loadBtn) loadBtn.disabled = true;
+        }
+    }
+    
+    async function connectToDrive() {
+        const tokenClient = google.accounts.oauth2.initTokenClient({
+            client_id: DRIVE_CLIENT_ID,
+            scope: 'https://www.googleapis.com/auth/drive.file',
+            callback: async (resp) => {
+                if (resp.error) {
+                    console.error('Error:', resp.error);
+                    return;
+                }
+                driveAccessToken = resp.access_token;
+                driveConnected = true;
+                updateDriveUI();
+                await ensureDriveFolder();
+                await listDriveFiles();
+            }
+        });
+        tokenClient.requestAccessToken({ prompt: 'consent' });
+    }
+    
+    async function ensureDriveFolder() {
+        if (!driveAccessToken) return null;
+        
+        const query = `name='${DRIVE_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+        const response = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name)`, {
+            headers: { 'Authorization': `Bearer ${driveAccessToken}` }
+        });
+        const data = await response.json();
+        
+        if (data.files && data.files.length > 0) {
+            driveFolderId = data.files[0].id;
+            return driveFolderId;
+        }
+        
+        const folderMetadata = {
+            name: DRIVE_FOLDER_NAME,
+            mimeType: 'application/vnd.google-apps.folder'
+        };
+        const createResponse = await fetch('https://www.googleapis.com/drive/v3/files', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${driveAccessToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(folderMetadata)
+        });
+        const folderData = await createResponse.json();
+        driveFolderId = folderData.id;
+        return driveFolderId;
+    }
+    
+    async function savePlannerToDrive() {
+        if (!driveAccessToken || !driveConnected) {
+            alert('Primero conecta con Google Drive');
+            return;
+        }
+        
+        const plannerData = getPlannerPersonal();
+        const exportData = plannerData.map(row => ({
+            'ACTIVIDAD': row.actividad || '',
+            'FECHA DE INICIO': row.fechaInicio || '',
+            'FECHA DE CIERRE': row.fechaCierre || '',
+            'PRIORIDAD': row.prioridad || '',
+            'ASIGNACIÓN': row.asignacion || '',
+            'ESTATUS': row.estatus || '',
+            'OBSERVACIONES': row.obs || ''
+        }));
+        
+        const ws = XLSX.utils.json_to_sheet(exportData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Mi Planner");
+        const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        
+        const timestamp = new Date().toISOString().slice(0,19).replace(/:/g, '-');
+        const fileName = `planner_${currentUser.username}_${timestamp}.xlsx`;
+        
+        await ensureDriveFolder();
+        
+        const metadata = {
+            name: fileName,
+            mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            parents: [driveFolderId]
+        };
+        
+        const form = new FormData();
+        form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+        form.append('file', blob);
+        
+        try {
+            const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${driveAccessToken}` },
+                body: form
+            });
+            
+            if (response.ok) {
+                alert('✅ Planner guardado en Google Drive');
+                await listDriveFiles();
+            } else {
+                throw new Error('Error al guardar');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('❌ Error al guardar en Drive');
+        }
+    }
+    
+    async function listDriveFiles() {
+        if (!driveAccessToken || !driveFolderId) return;
+        
+        const query = `'${driveFolderId}' in parents and trashed=false and mimeType!='application/vnd.google-apps.folder'`;
+        const response = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name,createdTime)&orderBy=createdTime desc`, {
+            headers: { 'Authorization': `Bearer ${driveAccessToken}` }
+        });
+        const data = await response.json();
+        
+        const container = document.getElementById('driveFilesContainer');
+        const fileListDiv = document.getElementById('driveFileList');
+        
+        if (data.files && data.files.length > 0) {
+            fileListDiv.style.display = 'block';
+            container.innerHTML = '';
+            data.files.forEach(file => {
+                const date = new Date(file.createdTime).toLocaleString();
+                container.innerHTML += `
+                    <div style="padding: 8px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center;">
+                        <span>📄 ${file.name} <small>(${date})</small></span>
+                        <button onclick="loadPlannerFromDrive('${file.id}')" style="font-size: 11px; padding: 4px 12px;">Cargar</button>
+                    </div>
+                `;
+            });
+        } else {
+            fileListDiv.style.display = 'block';
+            container.innerHTML = '<div style="padding: 8px;">No hay archivos guardados aún</div>';
+        }
+    }
+    
+    async function loadPlannerFromDrive(fileId) {
+        if (!driveAccessToken) return;
+        
+        try {
+            const response = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+                headers: { 'Authorization': `Bearer ${driveAccessToken}` }
+            });
+            
+            if (response.ok) {
+                const blob = await response.blob();
+                const arrayBuffer = await blob.arrayBuffer();
+                const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+                
+                const plannerData = jsonData.map(row => ({
+                    actividad: row['ACTIVIDAD'] || '',
+                    fechaInicio: row['FECHA DE INICIO'] || '',
+                    fechaCierre: row['FECHA DE CIERRE'] || '',
+                    prioridad: row['PRIORIDAD'] || 'MEDIA',
+                    asignacion: row['ASIGNACIÓN'] || 'ASIGNACIÓN PUNTUAL',
+                    estatus: row['ESTATUS'] || 'PENDIENTE',
+                    obs: row['OBSERVACIONES'] || ''
+                }));
+                
+                if (plannerData.length > 0) {
+                    savePlannerPersonal(plannerData);
+                    if (currentUser && currentUser.role !== 'admin') {
+                        if (typeof initTablaPlannerPersonal === 'function') {
+                            initTablaPlannerPersonal();
+                        }
+                    }
+                    alert(`✅ Cargados ${plannerData.length} registros desde Drive`);
+                } else {
+                    alert('No se encontraron datos en el archivo');
+                }
+            } else {
+                alert('Error al cargar el archivo');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error al cargar desde Drive');
+        }
+    }
+    
+    async function openDrivePicker() {
+        if (!driveAccessToken) {
+            alert('Primero conecta con Google Drive');
+            return;
+        }
+        
+        await ensureDriveFolder();
+        
+        const view = new google.picker.View(google.picker.ViewId.DOCS);
+        view.setMimeTypes('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        
+        const picker = new google.picker.PickerBuilder()
+            .addView(view)
+            .setOAuthToken(driveAccessToken)
+            .setDeveloperKey(DRIVE_API_KEY)
+            .setCallback(async (data) => {
+                if (data.action === google.picker.Action.PICKED) {
+                    const file = data.docs[0];
+                    await loadPlannerFromDrive(file.id);
+                }
+            })
+            .build();
+        picker.setVisible(true);
+    }
+
+    // ================== FUNCIONES EXISTENTES (MODIFICADAS) ==================
+    
     let hitoLineChart, entregablesChart, revisionesChart;
 
     function renderTracking() {
@@ -321,7 +590,6 @@
             document.getElementById("checkTecno")?.addEventListener("change", (e) => { currentData.revisiones.tecnologiaSistemas = e.target.checked; persistCurrentData(); refreshForCurrentUser(); });
         }
         
-        // Gráfico entregables con escala fija 0-100
         const ctxEnt = document.getElementById('entregablesChart')?.getContext('2d');
         if(ctxEnt){
             let etapas = [...new Set(currentData.entregables.map(e=>e.etapa))];
@@ -369,7 +637,6 @@
         }
     }
 
-    // Resto de funciones (procesos, actividades, reuniones, SIPOC, progreso personal, planner)
     function renderProcesos() {
         let tbody = document.querySelector("#tablaProcesos tbody");
         if(!tbody) return;
@@ -603,7 +870,6 @@
             initTablaPlannerPersonal();
         };
         
-        // Exportar Excel
         document.getElementById("exportarExcelMiPlannerBtn").onclick = () => exportPlannerToExcel();
         document.getElementById("exportarExcelPlannerBtn").onclick = () => exportPlannerToExcel();
     }
@@ -621,6 +887,15 @@
         let wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Mi Planner");
         XLSX.writeFile(wb, `mi_planner_${currentUser.username}.xlsx`);
+        
+        // También guardar en Drive si está conectado
+        if (driveConnected && driveAccessToken) {
+            setTimeout(() => {
+                if (confirm('¿Deseas también guardar este archivo en Google Drive?')) {
+                    savePlannerToDrive();
+                }
+            }, 500);
+        }
     }
     
     function obtenerSemanaDesdeFechas(fechaInicio, fechaCierre) {
@@ -632,14 +907,17 @@
         return `Semana ${semana} de ${mes}`;
     }
 
-    // Funciones para supervisor y admin
     function initTablaUsuariosSupervisorAdmin(panel) {
         let users = getAllUsersData();
         let tbody = document.querySelector(`#tablaUsuarios${panel} tbody`);
         if(tbody){
             tbody.innerHTML = "";
             users.forEach(u => {
-                tbody.innerHTML += `<tr><td>${u.username}</td><td>${Math.round(u.avance)}%</td><td><button class="viewUserDetailBtn" data-user="${u.username}">📋 Ver</button></td></tr>`;
+                tbody.innerHTML += `<tr>
+                    <td>${u.username}</td>
+                    <td>${Math.round(u.avance)}%</td>
+                    <td><button class="viewUserDetailBtn" data-user="${u.username}">📋 Ver</button></td>
+                </tr>`;
             });
             document.querySelectorAll(`#tablaUsuarios${panel} .viewUserDetailBtn`).forEach(btn => btn.onclick = () => showUserDetailModal(btn.dataset.user));
         }
@@ -659,13 +937,12 @@
         let data = loadUserData(username);
         let avance = calcularAvanceUsuario(username);
         let html = `<h3>📊 Reporte - ${username}</h3><div class="alert-box">💡 Avance automático: ${avance}%</div>
-        <h4>📈 Hitos</h4><div class="table-wrapper"><table border="1"><thead><tr><th>Hito</th><th>Completado</th><th>Fecha Real</th></tr></thead><tbody>${data.hitos.map(h=>`<tr><td>${h.hito}</td><td>${h.completado?'✅':'❌'}</td><td>${h.fechaAvance||'-'}</td></tr>`).join('')}</tbody></table></div>
-        <h4>📦 Entregables</h4><div class="table-wrapper"><table border="1"><thead><tr><th>Etapa</th><th>Entregable</th><th>Estado</th></tr></thead><tbody>${data.entregables.map(e=>`<tr><td>${e.etapa}</td><td>${e.entregable}</td><td>${e.estado?'✅':'❌'}</td></tr>`).join('')}</tbody></table></div>`;
+        <h4>📈 Hitos</h4><div class="table-wrapper"><table border="1"><thead><tr><th>Hito</th><th>Completado</th><th>Fecha Real</th></tr></thead><tbody>${data.hitos.map(h=>`<tr><td>${h.hito}</td><td>${h.completado?'✅':'❌'}</td><td>${h.fechaAvance||'-'}</td>`).join('')}</tbody></table></div>
+        <h4>📦 Entregables</h4><div class="table-wrapper"><table border="1"><thead><tr><th>Etapa</th><th>Entregable</th><th>Estado</th></tr></thead><tbody>${data.entregables.map(e=>`<tr><td>${e.etapa}</td><td>${e.entregable}</td><td>${e.estado?'✅':'❌'}</td>`).join('')}</tbody></table></div>`;
         document.getElementById("modalReportBody").innerHTML = html;
         document.getElementById("userDetailModal").style.display = "flex";
     }
 
-    // Inventario y cronograma global
     const datosProcesosGlobales = [
         ["AS-PR-10101 PREPARACIÓN DE MATERIA PRIMA",1,"TERMINADO"],["AS-PR-10102 LIMPIEZA DE MATERIA PRIMA",2,"TERMINADO"],["AS-PR-10104 CONSERVAS EN LATAS",2,"TERMINADO"],["AS-PR-10105 CONSERVAS EN POUCH",2,"TERMINADO"],["AS-PR-10103 AUTOCLAVE",3,"TERMINADO"],
         ["AS-PR-10106 ETIQUETADO Y ENCARTONADO",3,"TERMINADO"],["AS-PR-10303 GESTIÓN DE VENTA DE SUBPRODUCTO",3,"TERMINADO"],["AS-PR-10401 EMBALAJE Y PALETIZADO",3,"TERMINADO"],["AS-PR-10406 ADMINISTRACIÓN DE INVENTARIO EN BODEGA",3,"TERMINADO"],["AS-PR-10407 ADMINISTRACIÓN DE INVENTARIO EN CÁMARA",3,"TERMINADO"],
@@ -1003,593 +1280,4 @@
         <h1>Reporte de Avance - ${currentUser.username}</h1>
         <p>Avance automático: ${av}%</p>
         <h2>Planner Personal</h2><div class="table-wrapper"><table border="1"><thead><tr><th>Actividad</th><th>Inicio</th><th>Cierre</th><th>Prioridad</th><th>Asignación</th><th>Estatus</th><th>Obs</th></tr></thead>
-        <tbody>${planner.map(p=>`<tr><td>${p.actividad}</td><td>${p.fechaInicio||''}</td><td>${p.fechaCierre||''}</td><td>${p.prioridad}</td><td>${p.asignacion}</td><td>${p.estatus}</td><td>${p.obs||''}</td></tr>`).join('')}</tbody></table></div></body></html>`;
-        let blob = new Blob([html], {type:"application/msword"}); saveAs(blob, `reporte_${currentUser.username}.doc`); 
-    }
-    
-    function exportDetailedWordReport(role) {
-        let users = getAllUsersData();
-        let avg = users.reduce((a,b)=>a+b.avance,0)/(users.length||1);
-        let allPlanner = [];
-        USERS.forEach(u => { if(u.role !== 'admin') { let p = JSON.parse(localStorage.getItem(`planner_personal_${u.username}`) || "[]"); p.forEach(item => allPlanner.push({nombre: u.username, ...item})); } });
-        let html = `<html><head><meta charset="UTF-8"><title>Diagnóstico ${role}</title></head><body>
-        <h1>Reporte de Seguimiento - ${role}</h1>
-        <p>Promedio de avance global: ${Math.round(avg)}%</p>
-        <h2>Rendimiento por Usuario</h2><div class="table-wrapper"><table border="1"><thead><tr><th>Usuario</th><th>Avance %</th></tr></thead><tbody>${users.map(u=>`<tr><td>${u.username}</td><td>${u.avance}%</td></tr>`).join('')}</tbody></table></div>
-        <h2>Planner Consolidado</h2><div class="table-wrapper"><table border="1"><thead><tr><th>Usuario</th><th>Actividad</th><th>Estatus</th></tr></thead><tbody>${allPlanner.map(p=>`<tr><td>${p.nombre}</td><td>${p.actividad}</td><td>${p.estatus}</td></tr>`).join('')}</tbody></table></div>
-        <h2>Análisis General</h2><p>El equipo presenta un avance promedio del ${Math.round(avg)}%. ${avg<50?'Se recomienda reforzar las áreas críticas y revisar los hitos pendientes.':avg<80?'El avance es moderado, continuar con las buenas prácticas.':'Excelente desempeño, mantener la dinámica de trabajo.'}</p>
-        </body></html>`;
-        let blob = new Blob([html], {type:"application/msword"}); saveAs(blob, `diagnostico_${role}.doc`);
-    }
-
-    function downloadFullBackup(){ let all={}; USERS.forEach(u=>{ all[u.username]= { data: loadUserData(u.username), progresoPersonal: JSON.parse(localStorage.getItem(`progreso_personal_${u.username}`) || "[]"), plannerPersonal: JSON.parse(localStorage.getItem(`planner_personal_${u.username}`) || "[]") }; }); let a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(all,null,2)],{type:'application/json'})); a.download=`backup_completo_${new Date().toISOString()}.json`; a.click(); }
-    function resetAllData() { if(confirm("⚠️ ¿BORRAR TODOS LOS DATOS?")){ USERS.forEach(u=>{ localStorage.removeItem(`proc_data_v5_${u.username}`); localStorage.removeItem(`progreso_personal_${u.username}`); localStorage.removeItem(`planner_personal_${u.username}`); }); localStorage.removeItem("global_procesos_detalle"); localStorage.removeItem("global_cronograma"); alert("Datos reiniciados. Recargando..."); location.reload(); } }
-
-    function agregarProceso() {
-        let nid = currentData.nextIdProceso++;
-        currentData.procesos.push({ id: nid, nombre: "Nuevo proceso", responsable: "", area: "", observaciones: "", estado: "Pendiente" });
-        persistCurrentData();
-        refreshForCurrentUser();
-    }
-    function agregarActividad() {
-        let nid = currentData.nextIdActividad++;
-        currentData.actividades.push({ id: nid, procesoId: currentData.procesos[0]?.id || 1, actividad: "Nueva actividad", responsable: "", entradas: "", salidas: "", sistema: "", documento: "", observaciones: "" });
-        persistCurrentData();
-        refreshForCurrentUser();
-    }
-    function agregarReunion() {
-        let nid = currentData.nextIdReunion++;
-        currentData.reuniones.push({ id: nid, procesoId: currentData.procesos[0]?.id || 1, tema: "Nueva reunión", participantes: "", fecha: new Date().toISOString().slice(0,10), acuerdos: "", estado: "Pendiente" });
-        persistCurrentData();
-        refreshForCurrentUser();
-    }
-
-    function persistCurrentData() { if(currentUser && currentUser.role !== 'admin') saveUserData(currentUser.username, currentData); }
-
-    function refreshForCurrentUser() {
-        if(!currentUser) return;
-        if(currentUser.role === 'admin'){
-            initTablaUsuariosSupervisorAdmin("Admin");
-            initTablaProgresoConsolidado("Admin");
-            initTablaPlannerConsolidado("Admin", document.getElementById("filtroPlannerAdmin")?.value || "todos");
-            initTablaProcesosGlobal("Admin");
-            initTablaCronograma("Admin");
-        } else if(currentUser.role === 'supervisor'){
-            currentData = loadUserData(currentUser.username);
-            renderTracking();
-            renderProcesos();
-            renderActividades();
-            renderReuniones();
-            renderSipoc();
-            initTablaProgresoPersonal();
-            initTablaPlannerPersonal();
-            initTablaUsuariosSupervisorAdmin("Supervisor");
-            initTablaProgresoConsolidado("Super");
-            initTablaPlannerConsolidado("Super", document.getElementById("filtroPlannerSuper")?.value || "todos");
-            initTablaProcesosGlobal("Super");
-            initTablaCronograma("Super");
-            let av = calcularAvanceUsuario(currentUser.username);
-            document.getElementById("avancePorcentaje").innerHTML = av+"%";
-            document.getElementById("completadosCount").innerText = currentData?.procesos.filter(p=>p.estado==="Completado").length || 0;
-            document.getElementById("totalActividades").innerText = currentData?.actividades.length || 0;
-            document.getElementById("totalReuniones").innerText = currentData?.reuniones.length || 0;
-        } else {
-            currentData = loadUserData(currentUser.username);
-            renderTracking();
-            renderProcesos();
-            renderActividades();
-            renderReuniones();
-            renderSipoc();
-            initTablaProgresoPersonal();
-            initTablaPlannerPersonal();
-            let av = calcularAvanceUsuario(currentUser.username);
-            document.getElementById("avancePorcentaje").innerHTML = av+"%";
-            document.getElementById("completadosCount").innerText = currentData?.procesos.filter(p=>p.estado==="Completado").length || 0;
-            document.getElementById("totalActividades").innerText = currentData?.actividades.length || 0;
-            document.getElementById("totalReuniones").innerText = currentData?.reuniones.length || 0;
-        }
-    }
-
-    function buildTabs() {
-        let container = document.getElementById("tabBarContainer");
-        container.innerHTML = "";
-        if(currentUser.role === 'admin'){
-            container.innerHTML = `<button class="tab-btn active" data-tab="adminDashboard">📊 Admin Dashboard</button><button class="tab-btn" data-tab="tablaProcesosGlobalAdmin">📋 Inventario</button><button class="tab-btn" data-tab="tablaCronogramaAdmin">📅 Cronograma</button><button class="tab-btn" data-tab="tablaProgresoConsolidadoAdmin">📈 Progreso Equipo</button><button class="tab-btn" data-tab="tablaPlannerConsolidadoAdmin">📋 Planner Equipo</button>`;
-            function ensureTab(tabId, contentHtml) {
-                if(!document.getElementById(tabId)) {
-                    let div = document.createElement("div"); div.id = tabId; div.className = "tab-panel"; div.innerHTML = contentHtml;
-                    document.getElementById("mainApp").appendChild(div);
-                }
-            }
-            ensureTab("tablaProcesosGlobalAdmin", `<div class="card"><h3>📋 Inventario de Procesos</h3><div class="flex-btns"><button id="agregarFilaProcesoGlobalAdmin">➕ Agregar nuevo proceso</button></div><div class="table-wrapper"><table id="tablaProcesosGlobalAdmin"><thead><tr><th>PROCESO</th><th>LOTE</th><th>ESTADO</th><th>Acciones</th></tr></thead><tbody></tbody></table></div><div class="two-columns"><div class="col-chart"><div class="chart-container"><canvas id="pastelEstadosGlobalAdmin" style="height:200px;"></canvas></div></div></div></div>`);
-            ensureTab("tablaCronogramaAdmin", `<div class="card"><h3>📅 Cronograma de Lotes</h3><div class="flex-btns"><button id="agregarFilaCronogramaAdmin">➕ Agregar nueva fila</button></div><div class="table-wrapper-horizontal"><div class="table-wrapper"><table id="tablaCronogramaAdmin"><thead><tr><th>LOTE</th><th># PROCESOS</th><th>DETALLE DE PROCESOS</th><th>FECHA INICIO</th><th>FECHA INTERVENCIÓN</th><th>FECHA CIERRE</th><th>RECURSO ASIGNADO</th><th>RECURSO CONTRASTE</th><th>ESTADO</th><th>OBSERVACIONES</th><th>Acciones</th></tr></thead><tbody></tbody></table></div></div><div class="two-columns"><div class="col-chart"><div class="chart-container"><canvas id="pastelEstadosCronoAdmin" style="height:200px;"></canvas></div></div></div></div>`);
-            ensureTab("tablaProgresoConsolidadoAdmin", `<div class="card"><h3>📊 Progreso del Equipo (Consolidado)</h3><div class="table-wrapper"><table id="tablaProgresoConsolidadoAdmin"><thead><tr><th>USUARIO</th><th>LOTE</th><th>PROCESO</th><th>R. ASIGNADO</th><th>R. SOPORTE</th><th>AVANCE (%)</th><th>FASE</th><th>OBSERVACIONES</th></tr></thead><tbody></tbody></table></div><div><h4>📈 Avance General: <span id="avanceGeneralPromedioAdmin">0%</span></h4></div><div class="two-columns"><div class="col-chart"><div class="chart-container"><canvas id="pastelAvanceProcesosAdmin" style="height:200px;"></canvas></div></div><div class="col-chart"><div class="chart-container"><canvas id="pastelAvanceRecursosAdmin" style="height:200px;"></canvas></div></div></div></div>`);
-            ensureTab("tablaPlannerConsolidadoAdmin", `<div class="card"><h3>📊 Planner Consolidado del Equipo</h3><div class="filter-bar"><label>🔍 Filtrar por usuario:</label><select id="filtroPlannerAdmin"><option value="todos">Todos los usuarios</option></select><button id="aplicarFiltroAdmin" class="secondary">Aplicar filtro</button></div><div class="table-wrapper"><table id="tablaPlannerConsolidadoAdmin"><thead><tr><th>NOMBRE</th><th>ACTIVIDAD</th><th>FECHA INICIO</th><th>FECHA CIERRE</th><th>PRIORIDAD</th><th>ASIGNACIÓN</th><th>ESTATUS</th><th>OBSERVACIONES</th></tr></thead><tbody></tbody></table></div><div class="two-columns"><div class="col-chart"><div class="chart-container"><canvas id="plannerPorUsuarioChartAdmin" style="height:200px;"></canvas></div></div><div class="col-chart"><div class="chart-container"><canvas id="plannerPorAsignacionChartAdmin" style="height:200px;"></canvas></div></div><div class="col-chart"><div class="chart-container"><canvas id="plannerPorEstadoChartAdmin" style="height:200px;"></canvas></div></div></div></div>`);
-            document.querySelectorAll(".tab-panel").forEach(p=>p.classList.remove("active-panel"));
-            document.getElementById("adminDashboard").classList.add("active-panel");
-            refreshForCurrentUser();
-        } else if(currentUser.role === 'supervisor'){
-            container.innerHTML = `<button class="tab-btn active" data-tab="supervisorPanel">📊 Supervisora</button><button class="tab-btn" data-tab="dashboardUser">📋 Mi Progreso</button><button class="tab-btn" data-tab="procesosUser">⚙️ Procesos</button><button class="tab-btn" data-tab="actividadesUser">📋 Actividades</button><button class="tab-btn" data-tab="reunionesUser">🎙️ Reuniones</button><button class="tab-btn" data-tab="sipocUser">🧩 SIPOC</button><button class="tab-btn" data-tab="miProgresoPersonal">📌 Mi Progreso</button><button class="tab-btn" data-tab="plannerPersonal">📋 Mi Planner</button>`;
-            document.querySelectorAll(".tab-panel").forEach(p=>p.classList.remove("active-panel"));
-            document.getElementById("supervisorPanel").classList.add("active-panel");
-            refreshForCurrentUser();
-        } else {
-            container.innerHTML = `<button class="tab-btn active" data-tab="dashboardUser">📊 Tablero</button><button class="tab-btn" data-tab="procesosUser">⚙️ Procesos</button><button class="tab-btn" data-tab="actividadesUser">📋 Actividades</button><button class="tab-btn" data-tab="reunionesUser">🎙️ Reuniones</button><button class="tab-btn" data-tab="sipocUser">🧩 SIPOC</button><button class="tab-btn" data-tab="miProgresoPersonal">📌 Mi Progreso</button><button class="tab-btn" data-tab="plannerPersonal">📋 Mi Planner</button>`;
-            document.querySelectorAll(".tab-panel").forEach(p=>p.classList.remove("active-panel"));
-            document.getElementById("dashboardUser").classList.add("active-panel");
-            refreshForCurrentUser();
-        }
-        document.querySelectorAll(".tab-btn").forEach(btn => btn.onclick = () => {
-            let id = btn.dataset.tab;
-            document.querySelectorAll(".tab-panel").forEach(p=>p.classList.remove("active-panel"));
-            document.getElementById(id).classList.add("active-panel");
-            if(id === "miProgresoPersonal") initTablaProgresoPersonal();
-            if(id === "plannerPersonal") initTablaPlannerPersonal();
-            if(id === "sipocUser") renderSipoc();
-            if(id === "tablaProcesosGlobalAdmin" || id === "tablaProcesosGlobalSuper") refreshForCurrentUser();
-            if(id === "tablaCronogramaAdmin" || id === "tablaCronogramaSuper") refreshForCurrentUser();
-            if(id === "tablaProgresoConsolidadoAdmin" || id === "tablaProgresoConsolidadoSuper") refreshForCurrentUser();
-            if(id === "tablaPlannerConsolidadoAdmin" || id === "tablaPlannerConsolidadoSuper") refreshForCurrentUser();
-        });
-    }
-
-    // Eventos
-    document.getElementById("loginBtn").onclick = () => { 
-        let user = document.getElementById("loginUser").value.trim().toUpperCase(); 
-        let pass = document.getElementById("loginPass").value; 
-        let found = USERS.find(u=>u.username===user && u.password===pass); 
-        if(found){ 
-            currentUser=found; 
-            document.getElementById("loginScreen").style.display="none"; 
-            document.getElementById("mainApp").style.display="block"; 
-            document.getElementById("userNameDisplay").innerHTML=`👤 ${found.username} (${found.role==='supervisor'?'Supervisora':found.role})`; 
-            buildTabs(); 
-        } else { 
-            document.getElementById("loginError").innerText="Credenciales incorrectas"; 
-        } 
-    };
-    document.getElementById("importReportJsonBtn")?.addEventListener("click", ()=>{ let inp=document.createElement("input"); inp.type="file"; inp.accept=".json"; inp.onchange=e=>importMyData(e.target.files[0]); inp.click(); });
-    document.getElementById("exportWordUserBtn")?.addEventListener("click", exportWordUser);
-    document.getElementById("exportWordSupervisorBtn")?.addEventListener("click", ()=> exportDetailedWordReport('supervisor'));
-    document.getElementById("exportWordReportBtn")?.addEventListener("click", ()=> exportDetailedWordReport('admin'));
-    document.getElementById("consolidateBtnSupervisor")?.addEventListener("click", ()=>{ let files=document.getElementById("consolidateFileInputSupervisor").files; if(files.length) consolidateFromFiles(files, 'supervisor'); else alert("Selecciona archivos JSON"); });
-    document.getElementById("consolidateBtnAdmin")?.addEventListener("click", ()=>{ let files=document.getElementById("consolidateFileInputAdmin").files; if(files.length) consolidateFromFiles(files, 'admin'); else alert("Selecciona archivos JSON"); });
-    document.getElementById("aplicarFiltroSuper")?.addEventListener("click", () => { initTablaPlannerConsolidado("Super", document.getElementById("filtroPlannerSuper").value); });
-    document.getElementById("aplicarFiltroAdmin")?.addEventListener("click", () => { initTablaPlannerConsolidado("Admin", document.getElementById("filtroPlannerAdmin").value); });
-    document.getElementById("agregarProcesoBtn")?.addEventListener("click", agregarProceso);
-    document.getElementById("agregarActividadBtn")?.addEventListener("click", agregarActividad);
-    document.getElementById("agregarReunionBtn")?.addEventListener("click", agregarReunion);
-    document.getElementById("refreshAdminBtn")?.addEventListener("click", resetAllData);
-    document.getElementById("downloadConsolidatedBackup")?.addEventListener("click", downloadFullBackup);
-    document.getElementById("btnExportarJSONFijo")?.addEventListener("click", exportDirectJSON);
-    document.getElementById("closeModalBtn")?.addEventListener("click", ()=>{ document.getElementById("userDetailModal").style.display="none"; });
-    window.onclick = e => { if(e.target === document.getElementById("userDetailModal")) document.getElementById("userDetailModal").style.display="none"; };
-    function escapeHtml(str) { if(!str) return ""; return String(str).replace(/[&<>]/g, m=> m==='&'?'&amp;': m==='<'?'&lt;':'&gt;'); }
-
-    if(!localStorage.getItem("global_procesos_detalle")) localStorage.setItem("global_procesos_detalle", JSON.stringify(datosProcesosGlobales.map(p => ({ proceso: p[0], lote: p[1], estado: p[2] || "NO INICIADO" }))));
-    if(!localStorage.getItem("global_cronograma")) localStorage.setItem("global_cronograma", JSON.stringify(cronogramaData));
-</script>
-    /* Copyright 2022 Google LLC
-
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
-
-     http://www.apache.org/licenses/LICENSE-2.0
-
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.*/
-
-// [START drive_download_file]
-
-import com.google.api.client.googleapis.json.GoogleJsonResponseException;
-import com.google.api.client.http.HttpRequestInitializer;
-import com.google.api.client.http.javanet.NetHttpTransport;
-import com.google.api.client.json.gson.GsonFactory;
-import com.google.api.services.drive.Drive;
-import com.google.api.services.drive.DriveScopes;
-import com.google.auth.http.HttpCredentialsAdapter;
-import com.google.auth.oauth2.GoogleCredentials;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.util.Arrays;
-
-/* Class to demonstrate use-case of drive's download file. */
-public class DownloadFile {
-
-  /**
-   * Download a Document file in PDF format.
-   *
-   * @param realFileId file ID of any workspace document format file.
-   * @return byte array stream if successful, {@code null} otherwise.
-   * @throws IOException if service account credentials file not found.
-   */
-  public static ByteArrayOutputStream downloadFile(String realFileId) throws IOException {
-        /* Load pre-authorized user credentials from the environment.
-           TODO(developer) - See https://developers.google.com/identity for
-          guides on implementing OAuth2 for your application.*/
-    GoogleCredentials credentials = GoogleCredentials.getApplicationDefault()
-        .createScoped(Arrays.asList(DriveScopes.DRIVE_FILE));
-    HttpRequestInitializer requestInitializer = new HttpCredentialsAdapter(
-        credentials);
-
-    // Build a new authorized API client service.
-    Drive service = new Drive.Builder(new NetHttpTransport(),
-        GsonFactory.getDefaultInstance(),
-        requestInitializer)
-        .setApplicationName("Drive samples")
-        .build();
-
-    try {
-      OutputStream outputStream = new ByteArrayOutputStream();
-
-      service.files().get(realFileId)
-          .executeMediaAndDownloadTo(outputStream);
-
-      return (ByteArrayOutputStream) outputStream;
-    } catch (GoogleJsonResponseException e) {
-      // TODO(developer) - handle error appropriately
-      System.err.println("Unable to move file: " + e.getDetails());
-      throw e;
-    }
-  }
-}
-// [END drive_download_file]
-    import com.google.api.client.googleapis.json.GoogleJsonResponseException;
-import com.google.api.client.http.FileContent;
-import com.google.api.client.http.HttpRequestInitializer;
-import com.google.api.client.http.javanet.NetHttpTransport;
-import com.google.api.client.json.gson.GsonFactory;
-import com.google.api.services.drive.Drive;
-import com.google.api.services.drive.DriveScopes;
-import com.google.api.services.drive.model.File;
-import com.google.auth.http.HttpCredentialsAdapter;
-import com.google.auth.oauth2.GoogleCredentials;
-import java.io.IOException;
-import java.util.Arrays;
-
-/* Class to demonstrate use of Drive insert file API */
-public class UploadBasic {
-
-  /**
-   * Upload new file.
-   *
-   * @return Inserted file metadata if successful, {@code null} otherwise.
-   * @throws IOException if service account credentials file not found.
-   */
-  public static String uploadBasic() throws IOException {
-    // Load pre-authorized user credentials from the environment.
-    // TODO(developer) - See https://developers.google.com/identity for
-    // guides on implementing OAuth2 for your application.
-    GoogleCredentials credentials = GoogleCredentials.getApplicationDefault()
-        .createScoped(Arrays.asList(DriveScopes.DRIVE_FILE));
-    HttpRequestInitializer requestInitializer = new HttpCredentialsAdapter(
-        credentials);
-
-    // Build a new authorized API client service.
-    Drive service = new Drive.Builder(new NetHttpTransport(),
-        GsonFactory.getDefaultInstance(),
-        requestInitializer)
-        .setApplicationName("Drive samples")
-        .build();
-    // Upload file photo.jpg on drive.
-    File fileMetadata = new File();
-    fileMetadata.setName("photo.jpg");
-    // File's content.
-    java.io.File filePath = new java.io.File("files/photo.jpg");
-    // Specify media type and file-path for file.
-    FileContent mediaContent = new FileContent("image/jpeg", filePath);
-    try {
-      File file = service.files().create(fileMetadata, mediaContent)
-          .setFields("id")
-          .execute();
-      System.out.println("File ID: " + file.getId());
-      return file.getId();
-    } catch (GoogleJsonResponseException e) {
-      // TODO(developer) - handle error appropriately
-      System.err.println("Unable to upload file: " + e.getDetails());
-      throw e;
-    }
-  }
-}
-    import com.google.api.client.http.HttpRequestInitializer;
-import com.google.api.client.http.javanet.NetHttpTransport;
-import com.google.api.client.json.gson.GsonFactory;
-import com.google.api.services.drive.Drive;
-import com.google.api.services.drive.DriveScopes;
-import com.google.api.services.drive.model.File;
-import com.google.api.services.drive.model.FileList;
-import com.google.auth.http.HttpCredentialsAdapter;
-import com.google.auth.oauth2.GoogleCredentials;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
-/* Class to demonstrate use-case of search files. */
-public class SearchFile {
-
-  /**
-   * Search for specific set of files.
-   *
-   * @return search result list.
-   * @throws IOException if service account credentials file not found.
-   */
-  public static List<File> searchFile() throws IOException {
-           /*Load pre-authorized user credentials from the environment.
-           TODO(developer) - See https://developers.google.com/identity for
-           guides on implementing OAuth2 for your application.*/
-    GoogleCredentials credentials = GoogleCredentials.getApplicationDefault()
-        .createScoped(Arrays.asList(DriveScopes.DRIVE_FILE));
-    HttpRequestInitializer requestInitializer = new HttpCredentialsAdapter(
-        credentials);
-
-    // Build a new authorized API client service.
-    Drive service = new Drive.Builder(new NetHttpTransport(),
-        GsonFactory.getDefaultInstance(),
-        requestInitializer)
-        .setApplicationName("Drive samples")
-        .build();
-
-    List<File> files = new ArrayList<File>();
-
-    String pageToken = null;
-    do {
-      FileList result = service.files().list()
-          .setQ("mimeType='image/jpeg'")
-          .setSpaces("drive")
-          .setFields("nextPageToken, files(id, title)")
-          .setPageToken(pageToken)
-          .execute();
-      for (File file : result.getFiles()) {
-        System.out.printf("Found file: %s (%s)\n",
-            file.getName(), file.getId());
-      }
-
-      files.addAll(result.getFiles());
-
-      pageToken = result.getNextPageToken();
-    } while (pageToken != null);
-
-    return files;
-  }
-}
-        POST https://www.googleapis.com/drive/v3/files/FILE_ID/permissions
-        {
-  "requests": [
-    {
-        "type": "user",
-        "role": "commenter",
-        "emailAddress": "alex@altostrat.com"
-    }
-  ]
-}
-        {
-    "kind": "drive#permission",
-    "id": "PERMISSION_ID",
-    "type": "user",
-    "role": "commenter"
-}
-        import com.google.api.client.googleapis.batch.BatchRequest;
-import com.google.api.client.googleapis.batch.json.JsonBatchCallback;
-import com.google.api.client.googleapis.json.GoogleJsonError;
-import com.google.api.client.googleapis.json.GoogleJsonResponseException;
-import com.google.api.client.http.HttpHeaders;
-import com.google.api.client.http.HttpRequestInitializer;
-import com.google.api.client.http.javanet.NetHttpTransport;
-import com.google.api.client.json.gson.GsonFactory;
-import com.google.api.services.drive.Drive;
-import com.google.api.services.drive.DriveScopes;
-import com.google.api.services.drive.model.Permission;
-import com.google.auth.http.HttpCredentialsAdapter;
-import com.google.auth.oauth2.GoogleCredentials;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
-/* Class to demonstrate use-case of modify permissions. */
-public class ShareFile {
-
-  /**
-   * Batch permission modification.
-   * realFileId file Id.
-   * realUser User Id.
-   * realDomain Domain of the user ID.
-   *
-   * @return list of modified permissions if successful, {@code null} otherwise.
-   * @throws IOException if service account credentials file not found.
-   */
-  public static List<String> shareFile(String realFileId, String realUser, String realDomain)
-      throws IOException {
-        /* Load pre-authorized user credentials from the environment.
-         TODO(developer) - See https://developers.google.com/identity for
-         guides on implementing OAuth2 for your application.application*/
-    GoogleCredentials credentials = GoogleCredentials.getApplicationDefault()
-        .createScoped(Arrays.asList(DriveScopes.DRIVE_FILE));
-    HttpRequestInitializer requestInitializer = new HttpCredentialsAdapter(
-        credentials);
-
-    // Build a new authorized API client service.
-    Drive service = new Drive.Builder(new NetHttpTransport(),
-        GsonFactory.getDefaultInstance(),
-        requestInitializer)
-        .setApplicationName("Drive samples")
-        .build();
-
-    final List<String> ids = new ArrayList<String>();
-
-
-    JsonBatchCallback<Permission> callback = new JsonBatchCallback<Permission>() {
-      @Override
-      public void onFailure(GoogleJsonError e,
-                            HttpHeaders responseHeaders)
-          throws IOException {
-        // Handle error
-        System.err.println(e.getMessage());
-      }
-
-      @Override
-      public void onSuccess(Permission permission,
-                            HttpHeaders responseHeaders)
-          throws IOException {
-        System.out.println("Permission ID: " + permission.getId());
-
-        ids.add(permission.getId());
-
-      }
-    };
-    BatchRequest batch = service.batch();
-    Permission userPermission = new Permission()
-        .setType("user")
-        .setRole("writer");
-
-    userPermission.setEmailAddress(realUser);
-    try {
-      service.permissions().create(realFileId, userPermission)
-          .setFields("id")
-          .queue(batch, callback);
-
-      Permission domainPermission = new Permission()
-          .setType("domain")
-          .setRole("reader");
-
-      domainPermission.setDomain(realDomain);
-
-      service.permissions().create(realFileId, domainPermission)
-          .setFields("id")
-          .queue(batch, callback);
-
-      batch.execute();
-
-      return ids;
-    } catch (GoogleJsonResponseException e) {
-      // TODO(developer) - handle error appropriately
-      System.err.println("Unable to modify permission: " + e.getDetails());
-      throw e;
-    }
-  }
-}
-
-    import com.google.api.client.googleapis.json.GoogleJsonResponseException;
-import com.google.api.client.http.HttpRequestInitializer;
-import com.google.api.client.http.javanet.NetHttpTransport;
-import com.google.api.client.json.gson.GsonFactory;
-import com.google.api.services.drive.Drive;
-import com.google.api.services.drive.DriveScopes;
-import com.google.api.services.drive.model.File;
-import com.google.auth.http.HttpCredentialsAdapter;
-import com.google.auth.oauth2.GoogleCredentials;
-import java.io.IOException;
-import java.util.Arrays;
-
-/* Class to demonstrate Drive's create shortcut use-case */
-public class CreateShortcut {
-
-  /**
-   * Creates shortcut for file.
-   *
-   * @throws IOException if service account credentials file not found.
-   */
-  public static String createShortcut() throws IOException {
-        /* Load pre-authorized user credentials from the environment.
-        TODO(developer) - See https://developers.google.com/identity for
-        guides on implementing OAuth2 for your application.*/
-    GoogleCredentials credentials = GoogleCredentials.getApplicationDefault()
-        .createScoped(Arrays.asList(DriveScopes.DRIVE_FILE));
-    HttpRequestInitializer requestInitializer = new HttpCredentialsAdapter(
-        credentials);
-    // Build a new authorized API client service.
-    Drive service = new Drive.Builder(new NetHttpTransport(),
-        GsonFactory.getDefaultInstance(),
-        requestInitializer)
-        .setApplicationName("Drive samples")
-        .build();
-    try {
-      // Create Shortcut for file.
-      File fileMetadata = new File();
-      fileMetadata.setName("Project plan");
-      fileMetadata.setMimeType("application/vnd.google-apps.drive-sdk");
-
-      File file = service.files().create(fileMetadata)
-          .setFields("id")
-          .execute();
-      System.out.println("File ID: " + file.getId());
-      return file.getId();
-    } catch (GoogleJsonResponseException e) {
-      // TODO(developer) - handle error appropriately
-      System.err.println("Unable to create shortcut: " + e.getDetails());
-      throw e;
-    }
-  }
-}
-        import com.google.api.client.googleapis.json.GoogleJsonResponseException;
-import com.google.api.client.http.FileContent;
-import com.google.api.client.http.HttpRequestInitializer;
-import com.google.api.client.http.javanet.NetHttpTransport;
-import com.google.api.client.json.gson.GsonFactory;
-import com.google.api.services.drive.Drive;
-import com.google.api.services.drive.DriveScopes;
-import com.google.api.services.drive.model.File;
-import com.google.auth.http.HttpCredentialsAdapter;
-import com.google.auth.oauth2.GoogleCredentials;
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.Collections;
-
-/**
- * Class to demonstrate use-case of create file in the application data folder.
- */
-public class UploadAppData {
-
-  /**
-   * Creates a file in the application data folder.
-   *
-   * @return Created file's Id.
-   */
-  public static String uploadAppData() throws IOException {
-        /*Load pre-authorized user credentials from the environment.
-        TODO(developer) - See https://developers.google.com/identity for
-        guides on implementing OAuth2 for your application.*/
-    GoogleCredentials credentials = null;
-    try {
-      credentials = GoogleCredentials.getApplicationDefault()
-          .createScoped(Arrays.asList(DriveScopes.DRIVE_APPDATA));
-    } catch (IOException e) {
-      e.printStackTrace();
-    }
-    HttpRequestInitializer requestInitializer = new HttpCredentialsAdapter(
-        credentials);
-
-    // Build a new authorized API client service.
-    Drive service = new Drive.Builder(new NetHttpTransport(),
-        GsonFactory.getDefaultInstance(),
-        requestInitializer)
-        .setApplicationName("Drive samples")
-        .build();
-    try {
-      // File's metadata.
-      File fileMetadata = new File();
-      fileMetadata.setName("config.json");
-      fileMetadata.setParents(Collections.singletonList("appDataFolder"));
-      java.io.File filePath = new java.io.File("files/config.json");
-      FileContent mediaContent = new FileContent("application/json", filePath);
-      File file = service.files().create(fileMetadata, mediaContent)
-          .setFields("id")
-          .execute();
-      System.out.println("File ID: " + file.getId());
-      return file.getId();
-    } catch (GoogleJsonResponseException e) {
-      // TODO(developer) - handle error appropriately
-      System.err.println("Unable to create file: " + e.getDetails());
-      throw e;
-    }
-  }
-
-}
-</body>
-</html>
+        <tbody>${planner.map(p=>`<tr><td>${p.actividad}</td><td>${p.fechaInicio||''}</td><td>${p.fechaCierre||''}</td><td>${p.prioridad}</
